@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+	<AddIn Type="Application">
+		<Name>AI Renderer</Name>
+		<Assembly>AIrender.dll</Assembly>
+		<AddInId>8E6C0D79-D5F6-4B5C-B9E6-7E20512C02D1</AddInId>
+		<FullClassName>AIrender.AppStartup</FullClassName>
+		<VendorId>AIRENDERER</VendorId>
+		<VendorDescription>AI Renderer for Revit</VendorDescription>
+	</AddIn>
+</RevitAddIns>
