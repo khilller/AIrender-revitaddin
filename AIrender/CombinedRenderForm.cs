@@ -524,159 +524,151 @@ namespace RevitAIRenderer
                 _originalImagePath = Path.Combine(tempDir,
                     $"view_{_view.Id.IntegerValue}_{DateTime.Now:yyyyMMdd_HHmmss}.png");
 
-                // Use default dimensions - don't try to get from Revit UI
-                int viewWidth = 1600;
-                int viewHeight = 900;
+                // Calculate maximum dimensions for API (square root of max pixels)
+                // Max pixels is 9,437,184 according to error message
+                int maxDimension = (int)Math.Sqrt(9437184); // ~3072
 
-                // Apply high quality multiplier if needed, but cap at maximum dimensions
+                // Calculate target dimensions based on quality setting but respect max size
                 int scaleFactor = _highQualityRender ? 2 : 1;
+                int baseWidth = 1600;
+                int baseHeight = 900;
 
-                // Ensure aspect ratio is within allowed limits for Stability AI (1:2.5 to 2.5:1)
-                double aspectRatio = (double)viewWidth / viewHeight;
+                // First, ensure aspect ratio is within allowed limits for Stability AI (1:2.5 to 2.5:1)
+                double aspectRatio = (double)baseWidth / baseHeight;
                 if (aspectRatio > 2.5)
                 {
-                    // Too wide - adjust width
-                    viewWidth = (int)(viewHeight * 2.5);
+                    baseWidth = (int)(baseHeight * 2.5);
                     lblStatus.Text = "Adjusted aspect ratio (was too wide)";
                 }
                 else if (aspectRatio < 0.4) // 1/2.5 = 0.4
                 {
-                    // Too tall - adjust height
-                    viewHeight = (int)(viewWidth / 0.4);
+                    baseHeight = (int)(baseWidth / 0.4);
                     lblStatus.Text = "Adjusted aspect ratio (was too tall)";
                 }
 
-                int targetWidth = Math.Min(viewWidth * scaleFactor, 2560);
-                int targetHeight = Math.Min(viewHeight * scaleFactor, 1600);
+                // Apply quality factor but ensure we don't exceed max dimensions
+                int targetWidth = Math.Min(baseWidth * scaleFactor, 3072);
+                int targetHeight = Math.Min(baseHeight * scaleFactor, 3072);
 
-                // Get the UIView for the current view to capture exactly what user sees
-                UIDocument uidoc = new UIDocument(_document);
-                IList<UIView> uiviews = uidoc.GetOpenUIViews();
-                UIView activeUIView = null;
-
-                foreach (UIView uv in uiviews)
+                // Ensure total pixels stay under limit
+                long totalPixels = (long)targetWidth * targetHeight;
+                if (totalPixels > 9437184)
                 {
-                    if (uv.ViewId == _view.Id)
-                    {
-                        activeUIView = uv;
-                        break;
-                    }
+                    // Scale down proportionally to fit within pixel limit
+                    double scalingFactor = Math.Sqrt(9437184.0 / totalPixels);
+                    targetWidth = (int)(targetWidth * scalingFactor);
+                    targetHeight = (int)(targetHeight * scalingFactor);
+                    lblStatus.Text = $"Scaled dimensions to fit API limits: {targetWidth}x{targetHeight}";
                 }
 
-                if (activeUIView != null)
+                // Check if we need to use the exact viewport
+                bool useExactViewport = AppStartup.CurrentViewCorners != null &&
+                                       AppStartup.CurrentViewId == _view.Id;
+
+                if (useExactViewport)
                 {
                     lblStatus.Text = "Capturing exact viewport as seen...";
 
-                    // Get current view corners to preserve user's exact view
-                    IList<XYZ> corners = activeUIView.GetZoomCorners();
+                    // Get the UIView for the current view
+                    UIDocument uidoc = new UIDocument(_document);
+                    IList<UIView> uiviews = uidoc.GetOpenUIViews();
+                    UIView activeUIView = null;
 
-                    // Export with the exact viewport zoom
-                    ImageExportOptions imgOptions = new ImageExportOptions
+                    foreach (UIView uv in uiviews)
                     {
-                        ExportRange = ExportRange.VisibleRegionOfCurrentView,
-                        ZoomType = ZoomFitType.Zoom, // Use Zoom instead of FitToPage
-                        ViewName = _view.Name,
-                        ImageResolution = _highQualityRender ? ImageResolution.DPI_300 : ImageResolution.DPI_150,
-                        HLRandWFViewsFileType = ImageFileType.PNG,
-                        FilePath = _originalImagePath
-                    };
+                        if (uv.ViewId == _view.Id)
+                        {
+                            activeUIView = uv;
+                            break;
+                        }
+                    }
 
-                    // Set pixel size
-                    imgOptions.PixelSize = targetWidth;
+                    if (activeUIView != null)
+                    {
+                        // Export with the exact viewport zoom
+                        ImageExportOptions imgOptions = new ImageExportOptions
+                        {
+                            ExportRange = ExportRange.VisibleRegionOfCurrentView,
+                            ZoomType = ZoomFitType.Zoom,
+                            ViewName = _view.Name,
+                            ImageResolution = _highQualityRender ? ImageResolution.DPI_300 : ImageResolution.DPI_150,
+                            HLRandWFViewsFileType = ImageFileType.PNG,
+                            FilePath = _originalImagePath
+                        };
 
-                    // Export the image
-                    _document.ExportImage(imgOptions);
-                    lblStatus.Text = "Captured exact viewport successfully";
+                        // Set pixel size
+                        imgOptions.PixelSize = targetWidth;
+
+                        // Export the image
+                        _document.ExportImage(imgOptions);
+                        lblStatus.Text = "Captured exact viewport successfully";
+                    }
+                    else
+                    {
+                        // Fall back to the standard export if we can't get the UIView
+                        FallbackExportImage(targetWidth, targetHeight);
+                    }
                 }
                 else
                 {
-                    // Fall back to the standard export if we can't get the UIView
-                    lblStatus.Text = "Using standard view export (no active UIView found)...";
-
-                    // Export view with appropriate settings
-                    ImageExportOptions imgOptions = new ImageExportOptions
-                    {
-                        ExportRange = ExportRange.CurrentView,
-                        ZoomType = ZoomFitType.FitToPage, // Use FitToPage for standard export
-                        ViewName = _view.Name,
-                        ImageResolution = _highQualityRender ? ImageResolution.DPI_300 : ImageResolution.DPI_150,
-                        HLRandWFViewsFileType = ImageFileType.PNG,
-                        FilePath = _originalImagePath
-                    };
-
-                    // Set pixel size only - don't use ImageWidth or ImageHeight
-                    imgOptions.PixelSize = targetWidth;
-
-                    // Export the image
-                    _document.ExportImage(imgOptions);
-                    lblStatus.Text = "View captured with standard export";
+                    // Use the standard export if we don't have view corner information
+                    FallbackExportImage(targetWidth, targetHeight);
                 }
 
                 // Load the image into the picture box
                 LoadOriginalImage(_originalImagePath);
 
+                // Additional check to resize if image is still too large
+                CheckAndResizeIfTooLarge();
+
                 // Now check if the exported image has valid aspect ratio for API
-                if (_originalImage != null)
-                {
-                    double exportedAspectRatio = (double)_originalImage.Width / _originalImage.Height;
-                    lblStatus.Text = $"View captured: {_originalImage.Width} x {_originalImage.Height} pixels, aspect ratio: {exportedAspectRatio:F2}";
-
-                    // If the exported image has an invalid aspect ratio, crop it
-                    if (exportedAspectRatio > 2.5 || exportedAspectRatio < 0.4)
-                    {
-                        // Create a new bitmap with corrected aspect ratio
-                        int newWidth = _originalImage.Width;
-                        int newHeight = _originalImage.Height;
-
-                        if (exportedAspectRatio > 2.5)
-                        {
-                            // Too wide - crop width
-                            newWidth = (int)(_originalImage.Height * 2.5);
-                        }
-                        else
-                        {
-                            // Too tall - crop height
-                            newHeight = (int)(_originalImage.Width / 0.4);
-                        }
-
-                        // Create a new bitmap with the corrected dimensions
-                        System.Drawing.Bitmap croppedImage = new System.Drawing.Bitmap(newWidth, newHeight);
-                        using (System.Drawing.Graphics g = System.Drawing.Graphics.FromImage(croppedImage))
-                        {
-                            // Center the crop
-                            int x = (_originalImage.Width - newWidth) / 2;
-                            int y = (_originalImage.Height - newHeight) / 2;
-
-                            // Draw the cropped portion
-                            g.DrawImage(_originalImage,
-                                        new System.Drawing.Rectangle(0, 0, newWidth, newHeight),
-                                        new System.Drawing.Rectangle(x, y, newWidth, newHeight),
-                                        System.Drawing.GraphicsUnit.Pixel);
-                        }
-
-                        // Dispose of the original image
-                        _originalImage.Dispose();
-
-                        // Save the cropped image
-                        croppedImage.Save(_originalImagePath);
-
-                        // Load the cropped image
-                        _originalImage = croppedImage;
-                        pictureBoxOriginal.Image = _originalImage;
-
-                        lblStatus.Text = $"Corrected image: {_originalImage.Width} x {_originalImage.Height} pixels, aspect ratio: {(double)_originalImage.Width / _originalImage.Height:F2}";
-                    }
-                }
-                else
-                {
-                    lblStatus.Text = "Current view captured successfully";
-                }
+                CheckAndAdjustAspectRatio();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Failed to capture view: {ex.Message}", "Capture Error",
                     System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
                 lblStatus.Text = "Failed to capture view";
+            }
+        }
+
+        // Add this new method to check and resize large images
+        private void CheckAndResizeIfTooLarge()
+        {
+            if (_originalImage != null)
+            {
+                long totalPixels = (long)_originalImage.Width * _originalImage.Height;
+
+                // If over the 9,437,184 pixel limit, resize
+                if (totalPixels > 9437184)
+                {
+                    lblStatus.Text = $"Image too large ({totalPixels} pixels). Resizing...";
+
+                    // Calculate scaling factor
+                    double scalingFactor = Math.Sqrt(9437184.0 / totalPixels);
+                    int newWidth = (int)(_originalImage.Width * scalingFactor);
+                    int newHeight = (int)(_originalImage.Height * scalingFactor);
+
+                    // Create resized image
+                    System.Drawing.Bitmap resizedImage = new System.Drawing.Bitmap(newWidth, newHeight);
+                    using (System.Drawing.Graphics g = System.Drawing.Graphics.FromImage(resizedImage))
+                    {
+                        g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                        g.DrawImage(_originalImage, 0, 0, newWidth, newHeight);
+                    }
+
+                    // Dispose of original
+                    _originalImage.Dispose();
+
+                    // Save the resized image
+                    resizedImage.Save(_originalImagePath);
+
+                    // Update references
+                    _originalImage = resizedImage;
+                    pictureBoxOriginal.Image = _originalImage;
+
+                    lblStatus.Text = $"Resized image to {newWidth}x{newHeight} ({newWidth * newHeight} pixels)";
+                }
             }
         }
 
