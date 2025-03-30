@@ -4,6 +4,7 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Drawing;
 
 namespace RevitAIRenderer
 {
@@ -35,6 +36,8 @@ namespace RevitAIRenderer
 
             try
             {
+                // Peprocess  the image to ensure acceptable aspect ratio for the API
+                string processedImagePath = PreprocessImage(imagePath);
                 // Create a unique boundary string
                 string boundary = "----WebKitFormBoundary" + DateTime.Now.Ticks.ToString("x");
                 // For subsequent parts
@@ -170,7 +173,20 @@ namespace RevitAIRenderer
                         {
                             string errorContent = await reader.ReadToEndAsync();
                             LogMessage($"Error response content: {errorContent}");
-                            throw new Exception($"Request failed with status code {((HttpWebResponse)webEx.Response).StatusCode}: {errorContent}");
+
+                            // Add additional handling for specific error types
+                            if (errorContent.Contains("aspect ratio"))
+                            {
+                                string detailedMessage = $"Image aspect ratio error: {errorContent}\n" +
+                                    $"Original image dimensions: {GetImageDimensions(imagePath)}\n" +
+                                    "The API requires aspect ratios between 1:2.5 and 2.5:1.\n" +
+                                    "Try adjusting your Revit view or enabling automatic aspect ratio correction.";
+
+                                throw new Exception(detailedMessage);
+                            }
+
+                            // Throw a generic exception for other errors
+                            throw new Exception($"API Error: {errorContent}");
                         }
                     }
                     else
@@ -231,6 +247,87 @@ namespace RevitAIRenderer
             {
                 LogMessage($"API connectivity test failed with error: {ex.Message}");
                 return false;
+            }
+        }
+
+        // Helper method to get image dimensions
+        private string GetImageDimensions(string imagePath)
+        {
+            try
+            {
+                using (Image img = Image.FromFile(imagePath))
+                {
+                    return $"{img.Width}x{img.Height} (aspect ratio: {(double)img.Width / img.Height:F2})";
+                }
+            }
+            catch
+            {
+                return "Unknown dimensions";
+            }
+        }
+
+        public string PreprocessImage(string imagePath)
+        {
+            try
+            {
+                // Load the image
+                using (Image originalImage = Image.FromFile(imagePath))
+                {
+                    // Check aspect ratio
+                    double aspectRatio = (double)originalImage.Width / originalImage.Height;
+                    if (aspectRatio >= 0.4 && aspectRatio <= 2.5)
+                    {
+                        // Image is already within the acceptable range
+                        return imagePath;
+                    }
+
+                    // Calculate new dimensions
+                    int newWidth = originalImage.Width;
+                    int newHeight = originalImage.Height;
+
+                    if (aspectRatio > 2.5)
+                    {
+                        // Too wide
+                        newWidth = (int)(originalImage.Height * 2.5);
+                    }
+                    else if (aspectRatio < 0.4)
+                    {
+                        // Too tall
+                        newHeight = (int)(originalImage.Width / 0.4);
+                    }
+
+                    // Create a new bitmap with the corrected dimensions
+                    string outputPath = Path.Combine(
+                        Path.GetDirectoryName(imagePath),
+                        Path.GetFileNameWithoutExtension(imagePath) + "_corrected" + Path.GetExtension(imagePath));
+
+                    using (Bitmap croppedImage = new Bitmap(newWidth, newHeight))
+                    {
+                        using (Graphics g = Graphics.FromImage(croppedImage))
+                        {
+                            // Center the crop
+                            int x = (originalImage.Width - newWidth) / 2;
+                            int y = (originalImage.Height - newHeight) / 2;
+
+                            // Draw the cropped portion
+                            g.DrawImage(originalImage,
+                                        new Rectangle(0, 0, newWidth, newHeight),
+                                        new Rectangle(x, y, newWidth, newHeight),
+                                        GraphicsUnit.Pixel);
+                        }
+
+                        // Save the cropped image
+                        croppedImage.Save(outputPath);
+                    }
+
+                    LogMessage($"Preprocessed image from {originalImage.Width}x{originalImage.Height} to {newWidth}x{newHeight}");
+                    return outputPath;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogMessage($"Error preprocessing image: {ex.Message}");
+                return imagePath; // Return original on error
             }
         }
 

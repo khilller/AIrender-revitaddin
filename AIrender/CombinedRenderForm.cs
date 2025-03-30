@@ -510,107 +510,213 @@ namespace RevitAIRenderer
         }
 
         private void CaptureCurrentView()
-        {
-            lblStatus.Text = "Capturing current view...";
+{
+    lblStatus.Text = "Capturing current view...";
 
+    try
+    {
+        // Create temporary directory
+        string tempDir = GetSafeTempDirectory("Temp");
+
+        // Generate file path
+        _originalImagePath = Path.Combine(tempDir,
+            $"view_{_view.Id.IntegerValue}_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+
+        // Get active UI document to access viewport information
+        UIDocument uidoc = new UIDocument(_document);
+        Rectangle viewRect = uidoc.GetWindowRectangle();
+
+        // Calculate a reasonable image size based on viewport
+        // Default to something reasonable if we can't get actual dimensions
+        int viewWidth = viewRect.Width > 0 ? viewRect.Width : 1200;
+        int viewHeight = viewRect.Height > 0 ? viewRect.Height : 800;
+
+        // Apply high quality multiplier if needed, but cap at maximum dimensions
+        int scaleFactor = _highQualityRender ? 2 : 1;
+        
+        // Constrain aspect ratio to be compatible with Stability AI API (between 1:2.5 and 2.5:1)
+        double aspectRatio = (double)viewWidth / viewHeight;
+        if (aspectRatio > 2.5) {
+            // Too wide - adjust width to maintain proper aspect ratio
+            viewWidth = (int)(viewHeight * 2.5);
+            lblStatus.Text = "Adjusted aspect ratio (was too wide)";
+        } else if (aspectRatio < 0.4) { // 1/2.5 = 0.4
+            // Too tall - adjust height to maintain proper aspect ratio
+            viewHeight = (int)(viewWidth / 0.4);
+            lblStatus.Text = "Adjusted aspect ratio (was too tall)";
+        }
+        
+        int targetWidth = Math.Min(viewWidth * scaleFactor, 2560); // Cap width at 2560px
+        int targetHeight = Math.Min(viewHeight * scaleFactor, 1600); // Cap height at 1600px
+
+        // Double-check final aspect ratio is within limits
+        double finalAspectRatio = (double)targetWidth / targetHeight;
+        if (finalAspectRatio > 2.5 || finalAspectRatio < 0.4) {
+            // Emergency correction - force to 16:9 aspect ratio
+            if (targetWidth > targetHeight) {
+                targetWidth = (int)(targetHeight * 16.0 / 9.0);
+            } else {
+                targetHeight = (int)(targetWidth * 9.0 / 16.0);
+            }
+            lblStatus.Text = "Applied emergency aspect ratio correction";
+        }
+
+        // Export view with appropriate settings
+        ImageExportOptions imgOptions = new ImageExportOptions
+        {
+            ExportRange = ExportRange.CurrentView,
+            ZoomType = ZoomFitType.FitToPage, // Changed from Zoom to FitToPage
+            ViewName = _view.Name,
+            ImageResolution = _highQualityRender ? ImageResolution.DPI_300 : ImageResolution.DPI_150,
+            HLRandWFViewsFileType = ImageFileType.PNG,
+            FilePath = _originalImagePath
+        };
+
+        // Set pixel size to match calculated dimensions
+        try
+        {
+            imgOptions.PixelSize = targetWidth;
+            imgOptions.ImageWidth = targetWidth;
+            imgOptions.ImageHeight = targetHeight;
+        }
+        catch
+        {
+            // Some Revit versions have different properties
             try
             {
-                // Create temporary directory
-                string tempDir = GetSafeTempDirectory("Temp");
-
-                // Generate file path
-                _originalImagePath = Path.Combine(tempDir,
-                    $"view_{_view.Id.IntegerValue}_{DateTime.Now:yyyyMMdd_HHmmss}.png");
-
-                // Get active UI document to access viewport information
-                UIDocument uidoc = new UIDocument(_document);
-                Rectangle viewRect = uidoc.GetWindowRectangle();
-
-                // Calculate a reasonable image size based on viewport
-                // Default to something reasonable if we can't get actual dimensions
-                int viewWidth = viewRect.Width > 0 ? viewRect.Width : 1200;
-                int viewHeight = viewRect.Height > 0 ? viewRect.Height : 800;
-
-                // Apply high quality multiplier if needed, but cap at maximum dimensions
-                int scaleFactor = _highQualityRender ? 2 : 1;
-                int targetWidth = Math.Min(viewWidth * scaleFactor, 2560); // Cap width at 2560px
-                int targetHeight = Math.Min(viewHeight * scaleFactor, 1600); // Cap height at 1600px
-
-                // Export view with appropriate settings
-                ImageExportOptions imgOptions = new ImageExportOptions
-                {
-                    ExportRange = ExportRange.CurrentView,
-                    ZoomType = ZoomFitType.Zoom,
-                    ViewName = _view.Name,
-                    ImageResolution = _highQualityRender ? ImageResolution.DPI_300 : ImageResolution.DPI_150,
-                    HLRandWFViewsFileType = ImageFileType.PNG,
-                    FilePath = _originalImagePath
-                };
-
-                // Set pixel size to match viewport dimensions
-                try
-                {
-                    imgOptions.PixelSize = targetWidth;
-                    imgOptions.ImageWidth = targetWidth;
-                    imgOptions.ImageHeight = targetHeight;
-                }
-                catch
-                {
-                    // Some Revit versions have different properties
-                    try
-                    {
-                        imgOptions.PixelSize = targetWidth;
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"PixelSize property error: {ex.Message}");
-                    }
-                }
-
-                // Try to preserve current view settings
-                View3D view3D = _view as View3D;
-                if (view3D != null && !view3D.IsTemplate)
-                {
-                    imgOptions.ZoomType = ZoomFitType.Zoom;
-                    // Could potentially get camera position if needed
-                }
-
-                _document.ExportImage(imgOptions);
-
-                // Load the image into the picture box
-                LoadOriginalImage(_originalImagePath);
-
-                // Show resolution info in status bar
-                if (_originalImage != null)
-                {
-                    lblStatus.Text = $"View captured: {_originalImage.Width} x {_originalImage.Height} pixels";
-                }
-                else
-                {
-                    lblStatus.Text = "Current view captured successfully";
-                }
+                imgOptions.PixelSize = targetWidth;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to capture view: {ex.Message}", "Capture Error",
-                    System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
-                lblStatus.Text = "Failed to capture view";
+                System.Diagnostics.Debug.WriteLine($"PixelSize property error: {ex.Message}");
             }
         }
 
-        // This helper method would need to be added
-        private Rectangle GetWindowRectangle(UIDocument uidoc)
+        // View-specific settings
+        View3D view3D = _view as View3D;
+        if (view3D != null && !view3D.IsTemplate)
         {
-            // This is a simplification - in real code, you would need to use
-            // Revit API to get the actual viewport dimensions
-            // This may require using Windows API calls or Revit API elements
+            // Instead of using Zoom, use FitToPage to ensure we get a properly framed view
+            imgOptions.ZoomType = ZoomFitType.FitToPage;
+            
+            // If it's a 3D view, we might want to handle camera position differently
+            // This would require more complex code using the Revit API
+        }
 
-            // Example placeholder implementation:
-            System.Windows.Forms.Screen screen = System.Windows.Forms.Screen.PrimaryScreen;
-            Rectangle viewRect = new Rectangle(0, 0, screen.WorkingArea.Width, screen.WorkingArea.Height);
+        _document.ExportImage(imgOptions);
 
-            // In actual implementation, you'd get dimensions from Revit
-            return viewRect;
+        // Load the image into the picture box
+        LoadOriginalImage(_originalImagePath);
+
+        // Verify the exported image dimensions and aspect ratio
+        if (_originalImage != null)
+        {
+            double exportedAspectRatio = (double)_originalImage.Width / _originalImage.Height;
+            lblStatus.Text = $"View captured: {_originalImage.Width} x {_originalImage.Height} pixels, aspect ratio: {exportedAspectRatio:F2}";
+            
+            // If the exported image still has an invalid aspect ratio, we need to crop it
+            if (exportedAspectRatio > 2.5 || exportedAspectRatio < 0.4)
+            {
+                // Create a new bitmap with corrected aspect ratio
+                int newWidth = _originalImage.Width;
+                int newHeight = _originalImage.Height;
+                
+                if (exportedAspectRatio > 2.5) {
+                    // Too wide - crop width
+                    newWidth = (int)(_originalImage.Height * 2.5);
+                } else {
+                    // Too tall - crop height
+                    newHeight = (int)(_originalImage.Width / 0.4);
+                }
+                
+                // Create a new bitmap with the corrected dimensions
+                Bitmap croppedImage = new Bitmap(newWidth, newHeight);
+                using (Graphics g = Graphics.FromImage(croppedImage))
+                {
+                    // Center the crop
+                    int x = (_originalImage.Width - newWidth) / 2;
+                    int y = (_originalImage.Height - newHeight) / 2;
+                    
+                    // Draw the cropped portion
+                    g.DrawImage(_originalImage, 
+                                new Rectangle(0, 0, newWidth, newHeight),
+                                new Rectangle(x, y, newWidth, newHeight), 
+                                GraphicsUnit.Pixel);
+                }
+                
+                // Dispose of the original image
+                _originalImage.Dispose();
+                
+                // Save the cropped image
+                croppedImage.Save(_originalImagePath);
+                
+                // Load the cropped image
+                _originalImage = croppedImage;
+                pictureBoxOriginal.Image = _originalImage;
+                
+                lblStatus.Text = $"Corrected image: {_originalImage.Width} x {_originalImage.Height} pixels, aspect ratio: {(double)_originalImage.Width / _originalImage.Height:F2}";
+            }
+        }
+        else
+        {
+            lblStatus.Text = "Current view captured successfully";
+        }
+    }
+    catch (Exception ex)
+    {
+        MessageBox.Show($"Failed to capture view: {ex.Message}", "Capture Error",
+            System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+        lblStatus.Text = "Failed to capture view";
+    }
+}
+
+        // Add this helper method to the CombinedRenderForm class
+        private Outline ConvertBoundingBoxToOutline(BoundingBoxUV boundingBox)
+        {
+            // Extract min and max points from the BoundingBoxUV
+            XYZ min = new XYZ(boundingBox.Min.U, boundingBox.Min.V, 0);
+            XYZ max = new XYZ(boundingBox.Max.U, boundingBox.Max.V, 0);
+
+            // Create a new Outline using the min and max points
+            return new Outline(min, max);
+        }
+
+        // This helper method would need to be added
+        private System.Drawing.Rectangle GetWindowRectangle(UIDocument uidoc)
+        {
+            try
+            {
+                // Try to get actual window dimensions from Revit
+                // This approach varies depending on Revit version
+
+                // Method 1: Try to use view size if available
+                Autodesk.Revit.DB.View view = uidoc.ActiveView;
+                if (view != null)
+                {
+                    // Some views provide outline dimensions
+                    Autodesk.Revit.DB.Outline outline = ConvertBoundingBoxToOutline(view.Outline);
+                    if (outline != null)
+                    {
+                        double width = Math.Abs(outline.MaximumPoint.X - outline.MinimumPoint.X);
+                        double height = Math.Abs(outline.MaximumPoint.Y - outline.MinimumPoint.Y);
+
+                        if (width > 0 && height > 0)
+                        {
+                            return new System.Drawing.Rectangle(0, 0, (int)width, (int)height);
+                        }
+                    }
+                }
+
+                // Method 2: Fallback to screen dimensions
+                System.Windows.Forms.Screen screen = System.Windows.Forms.Screen.PrimaryScreen;
+                return new System.Drawing.Rectangle(0, 0, screen.WorkingArea.Width, screen.WorkingArea.Height);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting window rectangle: {ex.Message}");
+                // Fallback to default dimensions
+                return new System.Drawing.Rectangle(0, 0, 1200, 800);
+            }
         }
 
         private void LoadOriginalImage(string imagePath)
