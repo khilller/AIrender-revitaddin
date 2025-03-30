@@ -271,7 +271,7 @@ namespace RevitAIRenderer
             try
             {
                 // Load the image
-                using (Image originalImage = Image.FromFile(imagePath))
+                using (System.Drawing.Image originalImage = System.Drawing.Image.FromFile(imagePath))
                 {
                     // Check aspect ratio
                     double aspectRatio = (double)originalImage.Width / originalImage.Height;
@@ -301,9 +301,9 @@ namespace RevitAIRenderer
                         Path.GetDirectoryName(imagePath),
                         Path.GetFileNameWithoutExtension(imagePath) + "_corrected" + Path.GetExtension(imagePath));
 
-                    using (Bitmap croppedImage = new Bitmap(newWidth, newHeight))
+                    using (System.Drawing.Bitmap croppedImage = new System.Drawing.Bitmap(newWidth, newHeight))
                     {
-                        using (Graphics g = Graphics.FromImage(croppedImage))
+                        using (System.Drawing.Graphics g = System.Drawing.Graphics.FromImage(croppedImage))
                         {
                             // Center the crop
                             int x = (originalImage.Width - newWidth) / 2;
@@ -311,9 +311,9 @@ namespace RevitAIRenderer
 
                             // Draw the cropped portion
                             g.DrawImage(originalImage,
-                                        new Rectangle(0, 0, newWidth, newHeight),
-                                        new Rectangle(x, y, newWidth, newHeight),
-                                        GraphicsUnit.Pixel);
+                                        new System.Drawing.Rectangle(0, 0, newWidth, newHeight),
+                                        new System.Drawing.Rectangle(x, y, newWidth, newHeight),
+                                        System.Drawing.GraphicsUnit.Pixel);
                         }
 
                         // Save the cropped image
