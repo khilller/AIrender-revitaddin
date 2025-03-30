@@ -1,5 +1,8 @@
-﻿using Autodesk.Revit.UI;
+﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using Autodesk.Revit.UI.Events;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Windows.Media.Imaging;
@@ -17,6 +20,10 @@ namespace RevitAIRenderer
             LogFolderPath,
             "RevitAIRenderer_Log.txt");
 
+        // Add static fields to store current view information
+        public static List<XYZ> CurrentViewCorners { get; private set; }
+        public static ElementId CurrentViewId { get; private set; }
+
         public Result OnStartup(UIControlledApplication application)
         {
             try
@@ -25,6 +32,10 @@ namespace RevitAIRenderer
                 LogToFile("OnStartup called - Beginning add-in initialization");
                 LogToFile($"Assembly location: {Assembly.GetExecutingAssembly().Location}");
                 LogToFile($"Current directory: {Environment.CurrentDirectory}");
+
+                // Register for ViewActivated event
+                application.ViewActivated += new EventHandler<ViewActivatedEventArgs>(OnViewActivated);
+                LogToFile("Registered ViewActivated event handler");
 
                 // Get the assembly location for resources
                 string assemblyPath = Assembly.GetExecutingAssembly().Location;
@@ -116,6 +127,56 @@ namespace RevitAIRenderer
                 }
 
                 return Result.Failed;
+            }
+        }
+
+        // Add the ViewActivated event handler
+        private void OnViewActivated(object sender, ViewActivatedEventArgs e)
+        {
+            try
+            {
+                LogToFile($"View activated: {e.CurrentActiveView.Name} (ID: {e.CurrentActiveView.Id.IntegerValue})");
+
+                UIApplication uiapp = sender as UIApplication;
+                if (uiapp != null)
+                {
+                    UIDocument uidoc = uiapp.ActiveUIDocument;
+                    if (uidoc != null)
+                    {
+                        // Find the active UIView
+                        IList<UIView> uiviews = uidoc.GetOpenUIViews();
+                        UIView activeUIView = null;
+
+                        foreach (UIView uv in uiviews)
+                        {
+                            if (uv.ViewId == uidoc.ActiveView.Id)
+                            {
+                                activeUIView = uv;
+                                break;
+                            }
+                        }
+
+                        if (activeUIView != null)
+                        {
+                            // Store the current view's ID
+                            CurrentViewId = e.CurrentActiveView.Id;
+
+                            // Store the zoom corners
+                            IList<XYZ> corners = activeUIView.GetZoomCorners();
+                            CurrentViewCorners = new List<XYZ>(corners);
+
+                            LogToFile($"Stored view corners: {corners[0].X},{corners[0].Y},{corners[0].Z} to {corners[1].X},{corners[1].Y},{corners[1].Z}");
+                        }
+                        else
+                        {
+                            LogToFile("Could not find active UIView");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogToFile($"Error in OnViewActivated: {ex.Message}");
             }
         }
 

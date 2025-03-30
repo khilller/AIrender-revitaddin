@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Threading.Tasks;
@@ -548,22 +549,68 @@ namespace RevitAIRenderer
                 int targetWidth = Math.Min(viewWidth * scaleFactor, 2560);
                 int targetHeight = Math.Min(viewHeight * scaleFactor, 1600);
 
-                // Export view with appropriate settings
-                ImageExportOptions imgOptions = new ImageExportOptions
+                // Get the UIView for the current view to capture exactly what user sees
+                UIDocument uidoc = new UIDocument(_document);
+                IList<UIView> uiviews = uidoc.GetOpenUIViews();
+                UIView activeUIView = null;
+
+                foreach (UIView uv in uiviews)
                 {
-                    ExportRange = ExportRange.CurrentView,
-                    ZoomType = ZoomFitType.FitToPage, // Use FitToPage instead of Zoom
-                    ViewName = _view.Name,
-                    ImageResolution = _highQualityRender ? ImageResolution.DPI_300 : ImageResolution.DPI_150,
-                    HLRandWFViewsFileType = ImageFileType.PNG,
-                    FilePath = _originalImagePath
-                };
+                    if (uv.ViewId == _view.Id)
+                    {
+                        activeUIView = uv;
+                        break;
+                    }
+                }
 
-                // Set pixel size only - don't use ImageWidth or ImageHeight
-                imgOptions.PixelSize = targetWidth;
+                if (activeUIView != null)
+                {
+                    lblStatus.Text = "Capturing exact viewport as seen...";
 
-                // Export the image
-                _document.ExportImage(imgOptions);
+                    // Get current view corners to preserve user's exact view
+                    IList<XYZ> corners = activeUIView.GetZoomCorners();
+
+                    // Export with the exact viewport zoom
+                    ImageExportOptions imgOptions = new ImageExportOptions
+                    {
+                        ExportRange = ExportRange.VisibleRegionOfCurrentView,
+                        ZoomType = ZoomFitType.Zoom, // Use Zoom instead of FitToPage
+                        ViewName = _view.Name,
+                        ImageResolution = _highQualityRender ? ImageResolution.DPI_300 : ImageResolution.DPI_150,
+                        HLRandWFViewsFileType = ImageFileType.PNG,
+                        FilePath = _originalImagePath
+                    };
+
+                    // Set pixel size
+                    imgOptions.PixelSize = targetWidth;
+
+                    // Export the image
+                    _document.ExportImage(imgOptions);
+                    lblStatus.Text = "Captured exact viewport successfully";
+                }
+                else
+                {
+                    // Fall back to the standard export if we can't get the UIView
+                    lblStatus.Text = "Using standard view export (no active UIView found)...";
+
+                    // Export view with appropriate settings
+                    ImageExportOptions imgOptions = new ImageExportOptions
+                    {
+                        ExportRange = ExportRange.CurrentView,
+                        ZoomType = ZoomFitType.FitToPage, // Use FitToPage for standard export
+                        ViewName = _view.Name,
+                        ImageResolution = _highQualityRender ? ImageResolution.DPI_300 : ImageResolution.DPI_150,
+                        HLRandWFViewsFileType = ImageFileType.PNG,
+                        FilePath = _originalImagePath
+                    };
+
+                    // Set pixel size only - don't use ImageWidth or ImageHeight
+                    imgOptions.PixelSize = targetWidth;
+
+                    // Export the image
+                    _document.ExportImage(imgOptions);
+                    lblStatus.Text = "View captured with standard export";
+                }
 
                 // Load the image into the picture box
                 LoadOriginalImage(_originalImagePath);
@@ -633,56 +680,6 @@ namespace RevitAIRenderer
             }
         }
 
-
-        // Add this helper method to the CombinedRenderForm class
-        private Outline ConvertBoundingBoxToOutline(BoundingBoxUV boundingBox)
-        {
-            // Extract min and max points from the BoundingBoxUV
-            XYZ min = new XYZ(boundingBox.Min.U, boundingBox.Min.V, 0);
-            XYZ max = new XYZ(boundingBox.Max.U, boundingBox.Max.V, 0);
-
-            // Create a new Outline using the min and max points
-            return new Outline(min, max);
-        }
-
-        // This helper method would need to be added
-        private System.Drawing.Rectangle GetWindowRectangle(UIDocument uidoc)
-        {
-            try
-            {
-                // Try to get actual window dimensions from Revit
-                // This approach varies depending on Revit version
-
-                // Method 1: Try to use view size if available
-                Autodesk.Revit.DB.View view = uidoc.ActiveView;
-                if (view != null)
-                {
-                    // Some views provide outline dimensions
-                    Autodesk.Revit.DB.Outline outline = ConvertBoundingBoxToOutline(view.Outline);
-                    if (outline != null)
-                    {
-                        double width = Math.Abs(outline.MaximumPoint.X - outline.MinimumPoint.X);
-                        double height = Math.Abs(outline.MaximumPoint.Y - outline.MinimumPoint.Y);
-
-                        if (width > 0 && height > 0)
-                        {
-                            return new System.Drawing.Rectangle(0, 0, (int)width, (int)height);
-                        }
-                    }
-                }
-
-                // Method 2: Fallback to screen dimensions
-                System.Windows.Forms.Screen screen = System.Windows.Forms.Screen.PrimaryScreen;
-                return new System.Drawing.Rectangle(0, 0, screen.WorkingArea.Width, screen.WorkingArea.Height);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error getting window rectangle: {ex.Message}");
-                // Fallback to default dimensions
-                return new System.Drawing.Rectangle(0, 0, 1200, 800);
-            }
-        }
-
         private void LoadOriginalImage(string imagePath)
         {
             if (File.Exists(imagePath))
@@ -731,6 +728,85 @@ namespace RevitAIRenderer
                 {
                     MessageBox.Show($"Error loading rendered image: {ex.Message}", "Image Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void FallbackExportImage(int targetWidth, int targetHeight)
+        {
+            lblStatus.Text = "Using standard view export (no exact viewport data)...";
+
+            // Export view with appropriate settings
+            ImageExportOptions imgOptions = new ImageExportOptions
+            {
+                ExportRange = ExportRange.CurrentView,
+                ZoomType = ZoomFitType.FitToPage, // Use FitToPage for standard export
+                ViewName = _view.Name,
+                ImageResolution = _highQualityRender ? ImageResolution.DPI_300 : ImageResolution.DPI_150,
+                HLRandWFViewsFileType = ImageFileType.PNG,
+                FilePath = _originalImagePath
+            };
+
+            // Set pixel size only
+            imgOptions.PixelSize = targetWidth;
+
+            // Export the image
+            _document.ExportImage(imgOptions);
+            lblStatus.Text = "View captured with standard export";
+        }
+
+        private void CheckAndAdjustAspectRatio()
+        {
+            // This contains your existing aspect ratio adjustment code
+            if (_originalImage != null)
+            {
+                double exportedAspectRatio = (double)_originalImage.Width / _originalImage.Height;
+                lblStatus.Text = $"View captured: {_originalImage.Width} x {_originalImage.Height} pixels, aspect ratio: {exportedAspectRatio:F2}";
+
+                // If the exported image has an invalid aspect ratio, crop it
+                if (exportedAspectRatio > 2.5 || exportedAspectRatio < 0.4)
+                {
+                    // Create a new bitmap with corrected aspect ratio
+                    int newWidth = _originalImage.Width;
+                    int newHeight = _originalImage.Height;
+
+                    if (exportedAspectRatio > 2.5)
+                    {
+                        // Too wide - crop width
+                        newWidth = (int)(_originalImage.Height * 2.5);
+                    }
+                    else
+                    {
+                        // Too tall - crop height
+                        newHeight = (int)(_originalImage.Width / 0.4);
+                    }
+
+                    // Create a new bitmap with the corrected dimensions
+                    System.Drawing.Bitmap croppedImage = new System.Drawing.Bitmap(newWidth, newHeight);
+                    using (System.Drawing.Graphics g = System.Drawing.Graphics.FromImage(croppedImage))
+                    {
+                        // Center the crop
+                        int x = (_originalImage.Width - newWidth) / 2;
+                        int y = (_originalImage.Height - newHeight) / 2;
+
+                        // Draw the cropped portion
+                        g.DrawImage(_originalImage,
+                                    new System.Drawing.Rectangle(0, 0, newWidth, newHeight),
+                                    new System.Drawing.Rectangle(x, y, newWidth, newHeight),
+                                    System.Drawing.GraphicsUnit.Pixel);
+                    }
+
+                    // Dispose of the original image
+                    _originalImage.Dispose();
+
+                    // Save the cropped image
+                    croppedImage.Save(_originalImagePath);
+
+                    // Load the cropped image
+                    _originalImage = croppedImage;
+                    pictureBoxOriginal.Image = _originalImage;
+
+                    lblStatus.Text = $"Corrected image: {_originalImage.Width} x {_originalImage.Height} pixels, aspect ratio: {(double)_originalImage.Width / _originalImage.Height:F2}";
                 }
             }
         }
