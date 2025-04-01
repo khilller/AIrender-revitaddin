@@ -2,7 +2,7 @@
 
 An advanced add-in for Autodesk Revit that uses AI-powered image generation to transform standard Revit views into photorealistic architectural visualizations.
 
-![Revit AI Renderer](https://raw.githubusercontent.com/username/RevitAIRenderer/main/docs/images/sample-render.png)
+![Revit AI Renderer](https://github.com/user-attachments/assets/c861a4f3-0865-4eab-9c57-9a62d79f90c4)
 
 ## 🚀 Features
 
