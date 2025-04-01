@@ -2,7 +2,9 @@
 
 An advanced add-in for Autodesk Revit that uses AI-powered image generation to transform standard Revit views into photorealistic architectural visualizations.
 
-![Revit AI Renderer](https://raw.githubusercontent.com/username/RevitAIRenderer/main/docs/images/sample-render.png)
+![Revit AI Renderer](https://github.com/user-attachments/assets/c861a4f3-0865-4eab-9c57-9a62d79f90c4)
+
+⭐ If you find this add-in useful, please consider giving it a star on GitHub! ⭐
 
 ## 🚀 Features
 
@@ -24,14 +26,14 @@ An advanced add-in for Autodesk Revit that uses AI-powered image generation to t
 
 ### Method 1: Using the Installer
 
-1. Download the latest installer from the [Releases](https://github.com/username/RevitAIRenderer/releases) page
+1. Download the latest installer from the [Releases](https://github.com/khilller/AIrender-revitaddin/tree/master/Releases) page
 2. Close all running instances of Revit
 3. Run the installer and follow the on-screen instructions
 4. Launch Revit - the add-in should appear in a new "AI Renderer" panel in the ribbon
 
 ### Method 2: Manual Installation
 
-1. Download the latest release ZIP from the [Releases](https://github.com/username/RevitAIRenderer/releases) page
+1. Download the latest release ZIP from the [Releases](https://github.com/khilller/AIrender-revitaddin/tree/master/Releases) page
 2. Extract all files to a folder of your choice
 3. Copy the `RevitAIRenderer.addin` file to:
    - `C:\ProgramData\Autodesk\Revit\Addins\[Version]` (for all users)
@@ -143,7 +145,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 - Stability AI for providing the image generation API
 - Autodesk for the Revit API
-- All contributors who have helped improve this add-in
 
 ---
 
