@@ -24,14 +24,14 @@ An advanced add-in for Autodesk Revit that uses AI-powered image generation to t
 
 ### Method 1: Using the Installer
 
-1. Download the latest installer from the [Releases](https://github.com/username/RevitAIRenderer/releases) page
+1. Download the latest installer from the [Releases](https://github.com/khilller/AIrender-revitaddin/tree/master/Releases) page
 2. Close all running instances of Revit
 3. Run the installer and follow the on-screen instructions
 4. Launch Revit - the add-in should appear in a new "AI Renderer" panel in the ribbon
 
 ### Method 2: Manual Installation
 
-1. Download the latest release ZIP from the [Releases](https://github.com/username/RevitAIRenderer/releases) page
+1. Download the latest release ZIP from the [Releases](https://github.com/khilller/AIrender-revitaddin/tree/master/Releases) page
 2. Extract all files to a folder of your choice
 3. Copy the `RevitAIRenderer.addin` file to:
    - `C:\ProgramData\Autodesk\Revit\Addins\[Version]` (for all users)
