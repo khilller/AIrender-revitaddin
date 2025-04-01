@@ -17,7 +17,7 @@ An advanced add-in for Autodesk Revit that uses AI-powered image generation to t
 
 ## 📋 Requirements
 
-- Autodesk Revit 2021 or newer
+- Autodesk Revit 2023
 - .NET Framework 4.8
 - Stability AI API key (for AI rendering capabilities)
 - Internet connection (for API communication)
