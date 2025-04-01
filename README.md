@@ -4,6 +4,8 @@ An advanced add-in for Autodesk Revit that uses AI-powered image generation to t
 
 ![Revit AI Renderer](https://github.com/user-attachments/assets/c861a4f3-0865-4eab-9c57-9a62d79f90c4)
 
+⭐ If you find this add-in useful, please consider giving it a star on GitHub! ⭐
+
 ## 🚀 Features
 
 - **AI-Powered Rendering**: Transform standard Revit views into photorealistic or stylized renders
@@ -143,7 +145,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 - Stability AI for providing the image generation API
 - Autodesk for the Revit API
-- All contributors who have helped improve this add-in
 
 ---
 
