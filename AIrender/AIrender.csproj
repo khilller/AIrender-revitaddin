@@ -84,7 +84,6 @@
     <Compile Include="ImageViewerForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="FalApiClient.cs" />
     <Compile Include="ProgressForm.cs">
       <SubType>Form</SubType>
     </Compile>

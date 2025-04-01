@@ -248,37 +248,6 @@ namespace RevitAIRenderer
                 Size = new Size(200, 20)
             };
 
-            Button btnTestConnection = new Button
-            {
-                Text = "Test API Connection",
-                Location = new Point(240, 390),
-                Size = new Size(170, 30)
-            };
-            btnTestConnection.Click += async (s, e) => {
-                btnTestConnection.Enabled = false;
-                btnTestConnection.Text = "Testing...";
-
-                var client = new FalApiClient(txtApiKey.Text);
-                try
-                {
-                    var isConnected = await TestApiConnectivityAsync(client);
-                    if (isConnected)
-                        MessageBox.Show("Connection successful!", "API Connection Test",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    else
-                        MessageBox.Show("Connection failed. Please check your network settings.",
-                            "API Connection Test", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Connection error: {ex.Message}", "API Connection Test",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-
-                btnTestConnection.Enabled = true;
-                btnTestConnection.Text = "Test API Connection";
-            };
-
             // Help button for network troubleshooting
             Button btnNetworkHelp = new Button
             {
@@ -350,23 +319,9 @@ namespace RevitAIRenderer
                 lblGuidance, numGuidance,
                 lblOutputFormat, cboOutputFormat,
                 lblControlLoraStrength, numControlLoraStrength, btnModelInfo,
-                lblNetworkHeader, chkOfflineMode, btnTestConnection, btnNetworkHelp,
+                lblNetworkHeader, chkOfflineMode, btnNetworkHelp,
                 btnOK, btnCancel
             });
-        }
-
-        private async Task<bool> TestApiConnectivityAsync(FalApiClient client)
-        {
-            try
-            {
-                return await client.TestApiConnectivityAsync();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error testing connection: {ex.Message}", "Connection Test Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return false;
-            }
         }
 
         private TextBox txtApiKey;

@@ -3,12 +3,16 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using System;
 using System.IO;
+using System.Windows.Forms;
 
 namespace RevitAIRenderer
 {
     [Transaction(TransactionMode.ReadOnly)]
     public class AiRenderCommand : IExternalCommand
     {
+        // Static field to maintain a reference to the form
+        private static CombinedRenderForm _form = null;
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIApplication uiapp = commandData.Application;
@@ -20,11 +24,24 @@ namespace RevitAIRenderer
                 // Load settings
                 var settings = AiRendererSettings.Load();
 
-                // Create and show the combined form
-                using (var form = new CombinedRenderForm(doc, doc.ActiveView, settings))
+                // Check if form already exists
+                if (_form != null && !_form.IsDisposed)
                 {
-                    form.ShowDialog();
+                    // Bring existing form to front
+                    _form.BringToFront();
+                    _form.Focus();
+                    _form.WindowState = FormWindowState.Normal;
+
+                    // You could update the view here if needed
+                    // _form.UpdateCurrentView(doc.ActiveView);
+
+                    return Result.Succeeded;
                 }
+
+                // Create and show the form in non-modal mode
+                _form = new CombinedRenderForm(doc, doc.ActiveView, settings);
+                _form.Show(); // Use Show() instead of ShowDialog() for non-modal display
+                _form.FormClosed += (s, e) => { _form = null; }; // Clear reference when form is closed
 
                 return Result.Succeeded;
             }

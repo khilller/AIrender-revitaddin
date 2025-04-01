@@ -1,12 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
+using System.Drawing.Text;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Rectangle = System.Drawing.Rectangle;
+
 
 namespace RevitAIRenderer
 {
@@ -21,6 +24,7 @@ namespace RevitAIRenderer
         private Document _document;
         private Autodesk.Revit.DB.View _view;
         private bool _highQualityRender = true;  // Added flag for high-quality rendering
+        private System.ComponentModel.BackgroundWorker _renderWorker;
 
         // Form controls
         private System.Windows.Forms.SplitContainer splitContainer;
@@ -39,8 +43,12 @@ namespace RevitAIRenderer
         private System.Windows.Forms.ToolStripStatusLabel lblStatus;
         private System.Windows.Forms.ProgressBar progressBar;
         private System.Windows.Forms.CheckBox chkHighQuality;  // New checkbox for high quality
+        private System.Windows.Forms.NotifyIcon notifyIcon; // New notification icon
+
+
 
         // Constructor
+        // Initialize the background worker in the constructor
         public CombinedRenderForm(Document doc, Autodesk.Revit.DB.View view, AiRendererSettings settings)
         {
             _document = doc;
@@ -48,12 +56,37 @@ namespace RevitAIRenderer
             _settings = settings;
             InitializeComponent();
 
+            // Initialize background worker
+            _renderWorker = new System.ComponentModel.BackgroundWorker();
+            _renderWorker.DoWork += RenderWorker_DoWork;
+            _renderWorker.RunWorkerCompleted += RenderWorker_RunWorkerCompleted;
+            _renderWorker.WorkerReportsProgress = true;
+            //_renderWorker.ProgressChanged += RenderWorker_ProgressChanged;
+
+            // Initialize notification icon
+            notifyIcon = new NotifyIcon();
+            notifyIcon.Icon = SystemIcons.Information;
+            notifyIcon.Visible = false;
+            notifyIcon.Click += NotifyIcon_Click;
+
             // Load the settings into UI controls
             LoadSettings();
 
             // Capture the current view as soon as the form loads
             CaptureCurrentView();
         }
+
+        private void NotifyIcon_Click(object sender, EventArgs e)
+        {
+            // Bring form to front when notification is clicked
+            this.WindowState = FormWindowState.Normal;
+            this.Activate();
+            this.BringToFront();
+            this.Focus();
+        }
+
+
+
 
         private void InitializeComponent()
         {
@@ -396,8 +429,8 @@ namespace RevitAIRenderer
             try
             {
                 // Show progress indicator
+                string previousStatus = lblStatus.Text;
                 lblStatus.Text = "Synchronizing with Revit view...";
-                progressBar.Visible = true;
                 this.Cursor = Cursors.WaitCursor;
 
                 // Recapture the view with current Revit settings
@@ -408,6 +441,13 @@ namespace RevitAIRenderer
 
                 // Success message
                 lblStatus.Text = "View synchronized successfully";
+
+                // If we're rendering, notify that updated view won't be rendered until current job completes
+                if (_isRendering)
+                {
+                    MessageBox.Show("View has been updated successfully. The new view will be available for rendering once the current rendering job completes.",
+                        "View Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
             }
             catch (Exception ex)
             {
@@ -418,7 +458,6 @@ namespace RevitAIRenderer
             finally
             {
                 // Reset UI state
-                progressBar.Visible = false;
                 this.Cursor = Cursors.Default;
             }
         }
@@ -450,7 +489,7 @@ namespace RevitAIRenderer
             }
         }
 
-        private async void btnRender_Click(object sender, EventArgs e)
+        private void btnRender_Click(object sender, EventArgs e)
         {
             if (_isRendering)
             {
@@ -472,23 +511,68 @@ namespace RevitAIRenderer
             progressBar.Visible = true;
             lblStatus.Text = "Rendering in progress...";
 
+            // Pack rendering parameters
+            var renderParams = new Dictionary<string, object>
+            {
+                { "imagePath", _originalImagePath },
+                { "prompt", txtPrompt.Text },
+                { "controlStrength", (float)numControlStrength.Value },
+                { "negativePrompt", txtNegativePrompt.Text },
+                { "outputFormat", cboOutputFormat.SelectedItem.ToString() },
+                { "stylePreset", cboStylePreset.SelectedItem.ToString() },
+                { "apiKey", txtApiKey.Text }
+            };
+
+            // Start rendering in background
+            _renderWorker.RunWorkerAsync(renderParams);
+        }
+
+        private void RenderWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            // Update progress information if needed
+            if (e.UserState is string statusMessage)
+            {
+                lblStatus.Text = statusMessage;
+            }
+        }
+
+
+        private void RenderWorker_DoWork(object sender, System.ComponentModel.DoWorkEventArgs e)
+        {
             try
             {
-                // Create the API client with verbose logging enabled
-                var client = new StabilityApiClient(txtApiKey.Text, true); // Enable verbose logging for debugging
+                var parameters = (Dictionary<string, object>)e.Argument;
 
-                // Get the style preset (empty string if nothing selected)
-                string stylePreset = cboStylePreset.SelectedItem.ToString();
+                // Create the API client with verbose logging enabled
+                var client = new StabilityApiClient(txtApiKey.Text, true);
 
                 // Wait for the rendering task
-                string resultPath = await client.ProcessRevitViewAsync(
-                    _originalImagePath,
-                    txtPrompt.Text,
-                    (float)numControlStrength.Value,
-                    txtNegativePrompt.Text,
-                    cboOutputFormat.SelectedItem.ToString(),
-                    stylePreset);
+                string resultPath = client.ProcessRevitViewAsync(
+                    (string)parameters["imagePath"],
+                    (string)parameters["prompt"],
+                    (float)parameters["controlStrength"],
+                    (string)parameters["negativePrompt"],
+                    (string)parameters["outputFormat"],
+                    (string)parameters["stylePreset"]).Result;
 
+                e.Result = resultPath;
+            }
+            catch (Exception ex)
+            {
+                e.Result = ex;
+            }
+        }
+
+        private void RenderWorker_RunWorkerCompleted(object sender, System.ComponentModel.RunWorkerCompletedEventArgs e)
+        {
+            if (e.Result is Exception ex)
+            {
+                MessageBox.Show($"Error during rendering: {ex.Message}", "Rendering Error",
+                    System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+                lblStatus.Text = "Rendering failed";
+            }
+            else if (e.Result is string resultPath)
+            {
                 // Update the UI with rendered image
                 LoadRenderedImage(resultPath);
 
@@ -496,23 +580,85 @@ namespace RevitAIRenderer
                 tabControl.SelectedIndex = 1;
 
                 lblStatus.Text = "Rendering completed successfully";
+
+                // Show notification to user (since they might be working in Revit)
+                NotifyRenderingComplete(resultPath);
+                // Show notification to user (since they might be working in Revit)
+                ShowNotification("Rendering Complete", "Your AI rendering has completed successfully.");
+
+            }
+
+            _isRendering = false;
+            btnRender.Enabled = true;
+            progressBar.Visible = false;
+        }
+
+        private void ShowNotification(string title, string message)
+        {
+            try
+            {
+                notifyIcon.BalloonTipTitle = title;
+                notifyIcon.BalloonTipText = message;
+                notifyIcon.Visible = true;
+                notifyIcon.ShowBalloonTip(5000); // 5 seconds
+
+                // Schedule cleanup
+                System.Threading.Tasks.Task.Delay(6000).ContinueWith(t =>
+                {
+                    if (this.InvokeRequired)
+                    {
+                        this.BeginInvoke(new Action(() => { notifyIcon.Visible = false; }));
+                    }
+                    else
+                    {
+                        notifyIcon.Visible = false;
+                    }
+                });
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error during rendering: {ex.Message}", "Rendering Error",
-                    System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
-                lblStatus.Text = "Rendering failed";
+                // Ignore notification errors - not critical
+                System.Diagnostics.Debug.WriteLine($"Notification error: {ex.Message}");
             }
-            finally
+        }
+
+        private void NotifyRenderingComplete(string imagePath)
+        {
+            // Flash the form to notify user
+            //this.FlashWindow();
+
+            // Show a toast notification if available
+            try
             {
-                _isRendering = false;
-                btnRender.Enabled = true;
-                progressBar.Visible = false;
+                System.Windows.Forms.NotifyIcon notifyIcon = new System.Windows.Forms.NotifyIcon();
+                notifyIcon.Icon = System.Drawing.SystemIcons.Information;
+                notifyIcon.Visible = true;
+                notifyIcon.BalloonTipTitle = "Rendering Complete";
+                notifyIcon.BalloonTipText = "Your AI rendering has completed successfully.";
+                notifyIcon.ShowBalloonTip(5000); // 5 seconds
+
+                // Clean up after showing
+                System.Threading.Tasks.Task.Delay(6000).ContinueWith(t =>
+                {
+                    notifyIcon.Dispose();
+                });
+            }
+            catch
+            {
+                // Ignore notification errors - not critical
             }
         }
 
         private void CaptureCurrentView()
         {
+            // We need to invoke this on the main thread if called from a background thread
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(CaptureCurrentView));
+                return;
+            }
+
+            string statusText = lblStatus.Text;  // Store current status
             lblStatus.Text = "Capturing current view...";
 
             try
@@ -563,7 +709,7 @@ namespace RevitAIRenderer
 
                 // Check if we need to use the exact viewport
                 bool useExactViewport = AppStartup.CurrentViewCorners != null &&
-                                       AppStartup.CurrentViewId == _view.Id;
+                                        AppStartup.CurrentViewId == _view.Id;
 
                 if (useExactViewport)
                 {
@@ -627,10 +773,21 @@ namespace RevitAIRenderer
             catch (Exception ex)
             {
                 MessageBox.Show($"Failed to capture view: {ex.Message}", "Capture Error",
-                    System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
                 lblStatus.Text = "Failed to capture view";
             }
+
+            // If we're rendering, restore the rendering status message
+            if (_isRendering)
+            {
+                lblStatus.Text = statusText;  // Restore previous status message
+            }
         }
+
+
+
+
+
 
         // Add this new method to check and resize large images
         private void CheckAndResizeIfTooLarge()
@@ -833,7 +990,7 @@ namespace RevitAIRenderer
             }
         }
 
-        // Implement IDisposable
+        // Add proper cleanup for Dispose and OnFormClosing
         new public void Dispose()
         {
             // Clean up resources
@@ -849,13 +1006,39 @@ namespace RevitAIRenderer
                 _renderedImage = null;
             }
 
+            if (_renderWorker != null)
+            {
+                _renderWorker.Dispose();
+                _renderWorker = null;
+            }
+
+            if (notifyIcon != null)
+            {
+                notifyIcon.Dispose();
+                notifyIcon = null;
+            }
+
             // Call the base implementation
             base.Dispose();
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            base.OnFormClosing(e);
+            // Ask for confirmation if rendering is in progress
+            if (_isRendering)
+            {
+                DialogResult result = MessageBox.Show(
+                    "Rendering is currently in progress. Are you sure you want to close? The rendering will be canceled.",
+                    "Rendering In Progress",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (result == DialogResult.No)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+            }
 
             // Clean up resources
             if (_originalImage != null)
@@ -869,6 +1052,21 @@ namespace RevitAIRenderer
                 _renderedImage.Dispose();
                 _renderedImage = null;
             }
+
+            if (_renderWorker != null && _renderWorker.IsBusy)
+            {
+                // Detach event handlers to prevent callbacks after form is closed
+                _renderWorker.DoWork -= RenderWorker_DoWork;
+                _renderWorker.RunWorkerCompleted -= RenderWorker_RunWorkerCompleted;
+                _renderWorker.ProgressChanged -= RenderWorker_ProgressChanged;
+            }
+
+            if (notifyIcon != null)
+            {
+                notifyIcon.Visible = false;
+            }
+
+            base.OnFormClosing(e);
         }
     }
 }
