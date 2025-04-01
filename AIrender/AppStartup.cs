@@ -210,7 +210,35 @@ namespace RevitAIRenderer
                 LogToFile($"Attempting to load resource: {resourcePath}");
 
                 Assembly assembly = Assembly.GetExecutingAssembly();
+
+                // First try the provided path
                 Stream stream = assembly.GetManifestResourceStream(resourcePath);
+
+                // If that fails, try some alternatives
+                if (stream == null)
+                {
+                    LogToFile("Initial resource path not found, trying alternatives");
+
+                    // Try without namespace
+                    string shortPath = "Resources.render_icon.png";
+                    LogToFile($"Trying: {shortPath}");
+                    stream = assembly.GetManifestResourceStream(shortPath);
+
+                    // Try with just the filename
+                    if (stream == null)
+                    {
+                        string fileName = "render_icon.png";
+                        LogToFile($"Trying: {fileName}");
+                        stream = assembly.GetManifestResourceStream(fileName);
+                    }
+
+                    // List all resources to help debugging
+                    LogToFile("Available resources:");
+                    foreach (string name in assembly.GetManifestResourceNames())
+                    {
+                        LogToFile($" - {name}");
+                    }
+                }
 
                 if (stream != null)
                 {
@@ -219,15 +247,7 @@ namespace RevitAIRenderer
                 }
                 else
                 {
-                    LogToFile($"WARNING: Resource stream not found: {resourcePath}");
-
-                    // List available resources to help debugging
-                    LogToFile("Available resources:");
-                    foreach (string name in assembly.GetManifestResourceNames())
-                    {
-                        LogToFile($" - {name}");
-                    }
-
+                    LogToFile("WARNING: Resource stream not found in any attempted location");
                     return null;
                 }
             }
