@@ -6,13 +6,12 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using Rectangle = System.Drawing.Rectangle;
 using WinForms = System.Windows.Forms;
 using Drawing = System.Drawing;
 
 namespace RevitAIRenderer
 {
-    public class CombinedRenderForm : System.Windows.Forms.Form, IDisposable
+    public class CombinedRenderForm : WinForms.Form, IDisposable
     {
         private AiRendererSettings _settings;
         private string _originalImagePath;
@@ -26,37 +25,37 @@ namespace RevitAIRenderer
         private List<string> _referenceImagePaths = new List<string>();
 
         // Form controls
-        private System.Windows.Forms.SplitContainer splitContainer;
-        private System.Windows.Forms.Panel settingsPanel;
-        private System.Windows.Forms.ComboBox cboProvider;
+        private WinForms.SplitContainer splitContainer;
+        private WinForms.Panel settingsPanel;
+        private WinForms.ComboBox cboProvider;
 
         // Stability AI controls
-        private System.Windows.Forms.Panel pnlStabilitySettings;
-        private System.Windows.Forms.TextBox txtStabilityApiKey;
-        private System.Windows.Forms.TextBox txtPrompt;
-        private System.Windows.Forms.TextBox txtNegativePrompt;
-        private System.Windows.Forms.NumericUpDown numControlStrength;
-        private System.Windows.Forms.ComboBox cboOutputFormat;
-        private System.Windows.Forms.ComboBox cboStylePreset;
+        private WinForms.Panel pnlStabilitySettings;
+        private WinForms.TextBox txtStabilityApiKey;
+        private WinForms.TextBox txtPrompt;
+        private WinForms.TextBox txtNegativePrompt;
+        private WinForms.NumericUpDown numControlStrength;
+        private WinForms.ComboBox cboOutputFormat;
+        private WinForms.ComboBox cboStylePreset;
 
         // OpenAI controls
-        private System.Windows.Forms.Panel pnlOpenAiSettings;
-        private System.Windows.Forms.TextBox txtOpenAiApiKey;
-        private System.Windows.Forms.TextBox txtOpenAiPrompt;
-        private System.Windows.Forms.ComboBox cboOpenAiModel;
-        private System.Windows.Forms.FlowLayoutPanel _referencesPanel;
-        private System.Windows.Forms.Button _addReferenceButton;
+        private WinForms.Panel pnlOpenAiSettings;
+        private WinForms.TextBox txtOpenAiApiKey;
+        private WinForms.TextBox txtOpenAiPrompt;
+        private WinForms.ComboBox cboOpenAiModel;
+        private WinForms.FlowLayoutPanel _referencesPanel;
+        private WinForms.Button _addReferenceButton;
 
         // Common controls
-        private System.Windows.Forms.Button btnRender;
-        private System.Windows.Forms.Button btnSaveSettings;
-        private System.Windows.Forms.TabControl tabControl;
-        private System.Windows.Forms.PictureBox pictureBoxOriginal;
-        private System.Windows.Forms.PictureBox pictureBoxRendered;
-        private System.Windows.Forms.StatusStrip statusStrip;
-        private System.Windows.Forms.ToolStripStatusLabel lblStatus;
-        private System.Windows.Forms.ProgressBar progressBar;
-        private System.Windows.Forms.CheckBox chkHighQuality;
+        private WinForms.Button btnRender;
+        private WinForms.Button btnSaveSettings;
+        private WinForms.TabControl tabControl;
+        private WinForms.PictureBox pictureBoxOriginal;
+        private WinForms.PictureBox pictureBoxRendered;
+        private WinForms.StatusStrip statusStrip;
+        private WinForms.ToolStripStatusLabel lblStatus;
+        private WinForms.ProgressBar progressBar;
+        private WinForms.CheckBox chkHighQuality;
 
         // Constructor
         public CombinedRenderForm(Document doc, Autodesk.Revit.DB.View view, AiRendererSettings settings)
@@ -76,146 +75,172 @@ namespace RevitAIRenderer
         private void InitializeComponent()
         {
             this.Text = "Revit AI Renderer";
-            this.Size = new System.Drawing.Size(1200, 800);
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.MinimumSize = new System.Drawing.Size(900, 600);
+            this.Size = new Drawing.Size(1200, 800);
+            this.StartPosition = WinForms.FormStartPosition.CenterScreen;
+            this.MinimumSize = new Drawing.Size(900, 600);
+            this.BackColor = Drawing.Color.WhiteSmoke;
 
             // Create a split container to divide the form
-            splitContainer = new System.Windows.Forms.SplitContainer();
-            splitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
-            splitContainer.Orientation = System.Windows.Forms.Orientation.Vertical;
+            splitContainer = new WinForms.SplitContainer();
+            splitContainer.Dock = WinForms.DockStyle.Fill;
+            splitContainer.Orientation = WinForms.Orientation.Horizontal;
+            splitContainer.Panel1MinSize = 250;
+            splitContainer.Panel2MinSize = 400;
+            splitContainer.SplitterDistance = 300;
+            splitContainer.BackColor = Drawing.Color.White;
+            splitContainer.BorderStyle = WinForms.BorderStyle.FixedSingle;
 
             // First add the control to the form, before setting min sizes
             this.Controls.Add(splitContainer);
 
-            // Set the splitter properties after adding to form
-            splitContainer.Panel1MinSize = 250;
-            splitContainer.Panel2MinSize = 600;
-
-            // Set the splitter distance in the Load event to avoid initialization errors
-            this.Load += (sender, e) => {
-                try
-                {
-                    // Recalculate splitter position based on actual form size
-                    int splitterPos = Math.Min(300, this.ClientSize.Width - 600);
-                    if (splitterPos > 0)
-                    {
-                        splitContainer.SplitterDistance = splitterPos;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Error setting splitter position: {ex.Message}");
-                }
-            };
-
             // === Left Panel (Settings) ===
-            settingsPanel = new System.Windows.Forms.Panel();
-            settingsPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            settingsPanel = new WinForms.Panel();
+            settingsPanel.Dock = WinForms.DockStyle.Fill;
             settingsPanel.AutoScroll = true;
-            settingsPanel.Padding = new System.Windows.Forms.Padding(10);
+            settingsPanel.Padding = new WinForms.Padding(20);
+            settingsPanel.BackColor = Drawing.Color.White;
             splitContainer.Panel1.Controls.Add(settingsPanel);
 
-            // Add Provider Selection Section
-            System.Windows.Forms.Label lblProviderSection = new System.Windows.Forms.Label();
-            lblProviderSection.Text = "AI Provider";
-            lblProviderSection.Font = new System.Drawing.Font(this.Font, System.Drawing.FontStyle.Bold);
-            lblProviderSection.Size = new System.Drawing.Size(200, 20);
-            lblProviderSection.Location = new System.Drawing.Point(10, 10);
+            // Add Provider Selection Section with rounded border
+            WinForms.GroupBox providerGroup = new WinForms.GroupBox();
+            providerGroup.Text = "AI Provider";
+            providerGroup.Font = new Drawing.Font(this.Font.FontFamily, 11, Drawing.FontStyle.Bold);
+            providerGroup.Size = new Drawing.Size(450, 80);
+            providerGroup.Location = new Drawing.Point(20, 20);
+            providerGroup.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            providerGroup.BackColor = Drawing.Color.FromArgb(245, 245, 245);
 
-            cboProvider = new System.Windows.Forms.ComboBox();
-            cboProvider.Size = new System.Drawing.Size(260, 25);
-            cboProvider.Location = new System.Drawing.Point(10, 35);
-            cboProvider.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            cboProvider = new WinForms.ComboBox();
+            cboProvider.Size = new Drawing.Size(400, 30);
+            cboProvider.Location = new Drawing.Point(20, 30);
+            cboProvider.DropDownStyle = WinForms.ComboBoxStyle.DropDownList;
+            cboProvider.Font = new Drawing.Font(this.Font.FontFamily, 10);
             cboProvider.Items.AddRange(new object[] { "StabilityAI", "OpenAI" });
             cboProvider.SelectedIndex = 0; // Default to Stability AI
             cboProvider.SelectedIndexChanged += CboProvider_SelectedIndexChanged;
+            providerGroup.Controls.Add(cboProvider);
 
             // === Stability AI Panel ===
-            pnlStabilitySettings = new System.Windows.Forms.Panel();
-            pnlStabilitySettings.Size = new System.Drawing.Size(280, 520);
-            pnlStabilitySettings.Location = new System.Drawing.Point(10, 70);
+            pnlStabilitySettings = new WinForms.Panel();
+            pnlStabilitySettings.Size = new Drawing.Size(450, 520);
+            pnlStabilitySettings.Location = new Drawing.Point(20, 110);
             pnlStabilitySettings.Visible = true;
 
-            System.Windows.Forms.Label lblStabilityApiSection = new System.Windows.Forms.Label();
-            lblStabilityApiSection.Text = "API Configuration";
-            lblStabilityApiSection.Font = new System.Drawing.Font(this.Font, System.Drawing.FontStyle.Bold);
-            lblStabilityApiSection.Size = new System.Drawing.Size(200, 20);
-            lblStabilityApiSection.Location = new System.Drawing.Point(0, 0);
+            WinForms.GroupBox stabilityApiGroup = new WinForms.GroupBox();
+            stabilityApiGroup.Text = "API Configuration";
+            stabilityApiGroup.Font = new Drawing.Font(this.Font.FontFamily, 11, Drawing.FontStyle.Bold);
+            stabilityApiGroup.Size = new Drawing.Size(450, 100);
+            stabilityApiGroup.Location = new Drawing.Point(0, 0);
+            stabilityApiGroup.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            stabilityApiGroup.BackColor = Drawing.Color.FromArgb(245, 245, 245);
 
-            System.Windows.Forms.Label lblStabilityApiKey = new System.Windows.Forms.Label();
+            WinForms.Label lblStabilityApiKey = new WinForms.Label();
             lblStabilityApiKey.Text = "Stability AI API Key:";
-            lblStabilityApiKey.Size = new System.Drawing.Size(120, 20);
-            lblStabilityApiKey.Location = new System.Drawing.Point(0, 25);
+            lblStabilityApiKey.Font = new Drawing.Font(this.Font.FontFamily, 9);
+            lblStabilityApiKey.Size = new Drawing.Size(120, 20);
+            lblStabilityApiKey.Location = new Drawing.Point(20, 30);
+            lblStabilityApiKey.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            stabilityApiGroup.Controls.Add(lblStabilityApiKey);
 
-            txtStabilityApiKey = new System.Windows.Forms.TextBox();
-            txtStabilityApiKey.Size = new System.Drawing.Size(260, 20);
-            txtStabilityApiKey.Location = new System.Drawing.Point(0, 45);
+            txtStabilityApiKey = new WinForms.TextBox();
+            txtStabilityApiKey.Size = new Drawing.Size(400, 25);
+            txtStabilityApiKey.Location = new Drawing.Point(20, 55);
             txtStabilityApiKey.PasswordChar = '*';
+            txtStabilityApiKey.Font = new Drawing.Font(this.Font.FontFamily, 10);
+            txtStabilityApiKey.BorderStyle = WinForms.BorderStyle.FixedSingle;
+            stabilityApiGroup.Controls.Add(txtStabilityApiKey);
 
             // Rendering settings section
-            System.Windows.Forms.Label lblRenderSection = new System.Windows.Forms.Label();
-            lblRenderSection.Text = "Rendering Configuration";
-            lblRenderSection.Font = new System.Drawing.Font(this.Font, System.Drawing.FontStyle.Bold);
-            lblRenderSection.Size = new System.Drawing.Size(200, 20);
-            lblRenderSection.Location = new System.Drawing.Point(0, 75);
+            WinForms.GroupBox stabilityRenderGroup = new WinForms.GroupBox();
+            stabilityRenderGroup.Text = "Rendering Configuration";
+            stabilityRenderGroup.Font = new Drawing.Font(this.Font.FontFamily, 11, Drawing.FontStyle.Bold);
+            stabilityRenderGroup.Size = new Drawing.Size(450, 300);
+            stabilityRenderGroup.Location = new Drawing.Point(0, 110);
+            stabilityRenderGroup.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            stabilityRenderGroup.BackColor = Drawing.Color.FromArgb(245, 245, 245);
 
-            System.Windows.Forms.Label lblPrompt = new System.Windows.Forms.Label();
+            WinForms.Label lblPrompt = new WinForms.Label();
             lblPrompt.Text = "Prompt:";
-            lblPrompt.Size = new System.Drawing.Size(100, 20);
-            lblPrompt.Location = new System.Drawing.Point(0, 100);
+            lblPrompt.Font = new Drawing.Font(this.Font.FontFamily, 9);
+            lblPrompt.Size = new Drawing.Size(100, 20);
+            lblPrompt.Location = new Drawing.Point(20, 30);
+            lblPrompt.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            stabilityRenderGroup.Controls.Add(lblPrompt);
 
-            txtPrompt = new System.Windows.Forms.TextBox();
-            txtPrompt.Size = new System.Drawing.Size(260, 80);
-            txtPrompt.Location = new System.Drawing.Point(0, 120);
+            txtPrompt = new WinForms.TextBox();
+            txtPrompt.Size = new Drawing.Size(400, 80);
+            txtPrompt.Location = new Drawing.Point(20, 55);
             txtPrompt.Multiline = true;
+            txtPrompt.Font = new Drawing.Font(this.Font.FontFamily, 10);
+            txtPrompt.BorderStyle = WinForms.BorderStyle.FixedSingle;
+            stabilityRenderGroup.Controls.Add(txtPrompt);
 
-            System.Windows.Forms.Label lblNegativePrompt = new System.Windows.Forms.Label();
+            WinForms.Label lblNegativePrompt = new WinForms.Label();
             lblNegativePrompt.Text = "Negative Prompt:";
-            lblNegativePrompt.Size = new System.Drawing.Size(100, 20);
-            lblNegativePrompt.Location = new System.Drawing.Point(0, 210);
+            lblNegativePrompt.Font = new Drawing.Font(this.Font.FontFamily, 9);
+            lblNegativePrompt.Size = new Drawing.Size(120, 20);
+            lblNegativePrompt.Location = new Drawing.Point(20, 145);
+            lblNegativePrompt.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            stabilityRenderGroup.Controls.Add(lblNegativePrompt);
 
-            txtNegativePrompt = new System.Windows.Forms.TextBox();
-            txtNegativePrompt.Size = new System.Drawing.Size(260, 60);
-            txtNegativePrompt.Location = new System.Drawing.Point(0, 230);
+            txtNegativePrompt = new WinForms.TextBox();
+            txtNegativePrompt.Size = new Drawing.Size(400, 60);
+            txtNegativePrompt.Location = new Drawing.Point(20, 170);
             txtNegativePrompt.Multiline = true;
+            txtNegativePrompt.Font = new Drawing.Font(this.Font.FontFamily, 10);
+            txtNegativePrompt.BorderStyle = WinForms.BorderStyle.FixedSingle;
+            stabilityRenderGroup.Controls.Add(txtNegativePrompt);
 
             // Parameters
-            System.Windows.Forms.Label lblControlStrength = new System.Windows.Forms.Label();
+            WinForms.Label lblControlStrength = new WinForms.Label();
             lblControlStrength.Text = "Control Strength:";
-            lblControlStrength.Size = new System.Drawing.Size(100, 20);
-            lblControlStrength.Location = new System.Drawing.Point(0, 300);
+            lblControlStrength.Font = new Drawing.Font(this.Font.FontFamily, 9);
+            lblControlStrength.Size = new Drawing.Size(100, 20);
+            lblControlStrength.Location = new Drawing.Point(20, 240);
+            lblControlStrength.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            stabilityRenderGroup.Controls.Add(lblControlStrength);
 
-            numControlStrength = new System.Windows.Forms.NumericUpDown();
-            numControlStrength.Size = new System.Drawing.Size(80, 20);
-            numControlStrength.Location = new System.Drawing.Point(130, 300);
+            numControlStrength = new WinForms.NumericUpDown();
+            numControlStrength.Size = new Drawing.Size(80, 20);
+            numControlStrength.Location = new Drawing.Point(130, 240);
             numControlStrength.DecimalPlaces = 2;
             numControlStrength.Increment = 0.1m;
             numControlStrength.Minimum = 0.1m;
             numControlStrength.Maximum = 1.0m;
             numControlStrength.Value = 0.7m;
+            numControlStrength.Font = new Drawing.Font(this.Font.FontFamily, 10);
+            stabilityRenderGroup.Controls.Add(numControlStrength);
 
-            System.Windows.Forms.Label lblOutputFormat = new System.Windows.Forms.Label();
+            WinForms.Label lblOutputFormat = new WinForms.Label();
             lblOutputFormat.Text = "Output Format:";
-            lblOutputFormat.Size = new System.Drawing.Size(100, 20);
-            lblOutputFormat.Location = new System.Drawing.Point(0, 330);
+            lblOutputFormat.Font = new Drawing.Font(this.Font.FontFamily, 9);
+            lblOutputFormat.Size = new Drawing.Size(100, 20);
+            lblOutputFormat.Location = new Drawing.Point(230, 240);
+            lblOutputFormat.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            stabilityRenderGroup.Controls.Add(lblOutputFormat);
 
-            cboOutputFormat = new System.Windows.Forms.ComboBox();
-            cboOutputFormat.Size = new System.Drawing.Size(80, 20);
-            cboOutputFormat.Location = new System.Drawing.Point(130, 330);
-            cboOutputFormat.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            cboOutputFormat = new WinForms.ComboBox();
+            cboOutputFormat.Size = new Drawing.Size(80, 20);
+            cboOutputFormat.Location = new Drawing.Point(340, 240);
+            cboOutputFormat.DropDownStyle = WinForms.ComboBoxStyle.DropDownList;
+            cboOutputFormat.Font = new Drawing.Font(this.Font.FontFamily, 10);
             cboOutputFormat.Items.AddRange(new object[] { "jpeg", "png", "webp" });
             cboOutputFormat.SelectedIndex = 0;
+            stabilityRenderGroup.Controls.Add(cboOutputFormat);
 
-            System.Windows.Forms.Label lblStylePreset = new System.Windows.Forms.Label();
+            WinForms.Label lblStylePreset = new WinForms.Label();
             lblStylePreset.Text = "Style Preset:";
-            lblStylePreset.Size = new System.Drawing.Size(100, 20);
-            lblStylePreset.Location = new System.Drawing.Point(0, 360);
+            lblStylePreset.Font = new Drawing.Font(this.Font.FontFamily, 9);
+            lblStylePreset.Size = new Drawing.Size(100, 20);
+            lblStylePreset.Location = new Drawing.Point(20, 270);
+            lblStylePreset.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            stabilityRenderGroup.Controls.Add(lblStylePreset);
 
-            cboStylePreset = new System.Windows.Forms.ComboBox();
-            cboStylePreset.Size = new System.Drawing.Size(170, 20);
-            cboStylePreset.Location = new System.Drawing.Point(130, 360);
-            cboStylePreset.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            cboStylePreset = new WinForms.ComboBox();
+            cboStylePreset.Size = new Drawing.Size(170, 20);
+            cboStylePreset.Location = new Drawing.Point(130, 270);
+            cboStylePreset.DropDownStyle = WinForms.ComboBoxStyle.DropDownList;
+            cboStylePreset.Font = new Drawing.Font(this.Font.FontFamily, 10);
             cboStylePreset.Items.AddRange(new object[] {
                 "",
                 "3d-model",
@@ -237,181 +262,212 @@ namespace RevitAIRenderer
                 "tile-texture"
             });
             cboStylePreset.SelectedIndex = 0;
+            stabilityRenderGroup.Controls.Add(cboStylePreset);
 
             // Add high-quality option
-            chkHighQuality = new System.Windows.Forms.CheckBox();
+            WinForms.CheckBox chkStabilityHighQuality = new WinForms.CheckBox();
+            chkStabilityHighQuality.Text = "High-Quality Image Capture";
+            chkStabilityHighQuality.Size = new Drawing.Size(200, 20);
+            chkStabilityHighQuality.Location = new Drawing.Point(20, 420);
+            chkStabilityHighQuality.Checked = _highQualityRender;
+            chkStabilityHighQuality.Font = new Drawing.Font(this.Font.FontFamily, 10);
+            chkStabilityHighQuality.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            chkStabilityHighQuality.CheckedChanged += (s, e) => {
+                _highQualityRender = chkStabilityHighQuality.Checked;
+                CaptureCurrentView(); // Recapture with new quality settings
+            };
+
+            // Add Stability AI controls to panel
+            pnlStabilitySettings.Controls.Add(stabilityApiGroup);
+            pnlStabilitySettings.Controls.Add(stabilityRenderGroup);
+            pnlStabilitySettings.Controls.Add(chkStabilityHighQuality);
+
+            // === OpenAI Panel ===
+            pnlOpenAiSettings = new WinForms.Panel();
+            pnlOpenAiSettings.Size = new Drawing.Size(450, 520);
+            pnlOpenAiSettings.Location = new Drawing.Point(20, 110);
+            pnlOpenAiSettings.Visible = false; // Initially hidden
+
+            // API Configuration section with rounded border
+            WinForms.GroupBox apiConfigGroup = new WinForms.GroupBox();
+            apiConfigGroup.Text = "API Configuration";
+            apiConfigGroup.Font = new Drawing.Font(this.Font.FontFamily, 11, Drawing.FontStyle.Bold);
+            apiConfigGroup.Size = new Drawing.Size(450, 100);
+            apiConfigGroup.Location = new Drawing.Point(0, 0);
+            apiConfigGroup.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            apiConfigGroup.BackColor = Drawing.Color.FromArgb(245, 245, 245);
+
+            // OpenAI API Key label and textbox
+            WinForms.Label lblOpenAiApiKey = new WinForms.Label();
+            lblOpenAiApiKey.Text = "OpenAI API Key:";
+            lblOpenAiApiKey.Font = new Drawing.Font(this.Font.FontFamily, 9);
+            lblOpenAiApiKey.Size = new Drawing.Size(120, 25);
+            lblOpenAiApiKey.Location = new Drawing.Point(20, 30);
+            lblOpenAiApiKey.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            apiConfigGroup.Controls.Add(lblOpenAiApiKey);
+
+            txtOpenAiApiKey = new WinForms.TextBox();
+            txtOpenAiApiKey.Size = new Drawing.Size(400, 25);
+            txtOpenAiApiKey.Location = new Drawing.Point(20, 55);
+            txtOpenAiApiKey.PasswordChar = '*';
+            txtOpenAiApiKey.Font = new Drawing.Font(this.Font.FontFamily, 10);
+            txtOpenAiApiKey.BorderStyle = WinForms.BorderStyle.FixedSingle;
+            apiConfigGroup.Controls.Add(txtOpenAiApiKey);
+
+            // Rendering Configuration section
+            WinForms.GroupBox renderConfigGroup = new WinForms.GroupBox();
+            renderConfigGroup.Text = "Rendering Configuration";
+            renderConfigGroup.Font = new Drawing.Font(this.Font.FontFamily, 11, Drawing.FontStyle.Bold);
+            renderConfigGroup.Size = new Drawing.Size(450, 210);
+            renderConfigGroup.Location = new Drawing.Point(0, 110);
+            renderConfigGroup.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            renderConfigGroup.BackColor = Drawing.Color.FromArgb(245, 245, 245);
+
+            // Model dropdown
+            WinForms.Label lblOpenAiModel = new WinForms.Label();
+            lblOpenAiModel.Text = "Model:";
+            lblOpenAiModel.Font = new Drawing.Font(this.Font.FontFamily, 9);
+            lblOpenAiModel.Size = new Drawing.Size(60, 25);
+            lblOpenAiModel.Location = new Drawing.Point(20, 30);
+            lblOpenAiModel.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            renderConfigGroup.Controls.Add(lblOpenAiModel);
+
+            cboOpenAiModel = new WinForms.ComboBox();
+            cboOpenAiModel.Size = new Drawing.Size(300, 25);
+            cboOpenAiModel.Location = new Drawing.Point(90, 30);
+            cboOpenAiModel.DropDownStyle = WinForms.ComboBoxStyle.DropDownList;
+            cboOpenAiModel.Font = new Drawing.Font(this.Font.FontFamily, 10);
+            cboOpenAiModel.Items.AddRange(new object[] { "gpt-image-1" });
+            cboOpenAiModel.SelectedIndex = 0;
+            renderConfigGroup.Controls.Add(cboOpenAiModel);
+
+            // Prompt field
+            WinForms.Label lblOpenAiPrompt = new WinForms.Label();
+            lblOpenAiPrompt.Text = "Prompt:";
+            lblOpenAiPrompt.Font = new Drawing.Font(this.Font.FontFamily, 9);
+            lblOpenAiPrompt.Size = new Drawing.Size(100, 25);
+            lblOpenAiPrompt.Location = new Drawing.Point(20, 65);
+            lblOpenAiPrompt.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            renderConfigGroup.Controls.Add(lblOpenAiPrompt);
+
+            txtOpenAiPrompt = new WinForms.TextBox();
+            txtOpenAiPrompt.Size = new Drawing.Size(400, 80);
+            txtOpenAiPrompt.Location = new Drawing.Point(20, 90);
+            txtOpenAiPrompt.Multiline = true;
+            txtOpenAiPrompt.Font = new Drawing.Font(this.Font.FontFamily, 10);
+            txtOpenAiPrompt.BorderStyle = WinForms.BorderStyle.FixedSingle;
+            renderConfigGroup.Controls.Add(txtOpenAiPrompt);
+
+            // Reference Images Section
+            WinForms.GroupBox refImagesGroup = new WinForms.GroupBox();
+            refImagesGroup.Text = "Reference Images";
+            refImagesGroup.Font = new Drawing.Font(this.Font.FontFamily, 11, Drawing.FontStyle.Bold);
+            refImagesGroup.Size = new Drawing.Size(450, 150);
+            refImagesGroup.Location = new Drawing.Point(0, 330);
+            refImagesGroup.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            refImagesGroup.BackColor = Drawing.Color.FromArgb(245, 245, 245);
+
+            // Description label
+            WinForms.Label lblReferenceDesc = new WinForms.Label();
+            lblReferenceDesc.Text = "Add images to influence the final rendering";
+            lblReferenceDesc.Size = new Drawing.Size(400, 20);
+            lblReferenceDesc.Location = new Drawing.Point(20, 30);
+            lblReferenceDesc.ForeColor = Drawing.Color.DimGray;
+            lblReferenceDesc.Font = new Drawing.Font(this.Font.FontFamily, 8);
+            refImagesGroup.Controls.Add(lblReferenceDesc);
+
+            // Panel to hold reference thumbnails
+            _referencesPanel = new WinForms.FlowLayoutPanel();
+            _referencesPanel.Size = new Drawing.Size(400, 80);
+            _referencesPanel.Location = new Drawing.Point(20, 50);
+            _referencesPanel.BorderStyle = WinForms.BorderStyle.None;
+            _referencesPanel.AutoScroll = true;
+            _referencesPanel.FlowDirection = WinForms.FlowDirection.LeftToRight;
+            _referencesPanel.WrapContents = true;
+            _referencesPanel.BackColor = Drawing.Color.White;
+            refImagesGroup.Controls.Add(_referencesPanel);
+
+            // Add Reference button
+            _addReferenceButton = new WinForms.Button();
+            _addReferenceButton.Text = "+";
+            _addReferenceButton.Size = new Drawing.Size(40, 40);
+            _addReferenceButton.Location = new Drawing.Point(380, 70);
+            _addReferenceButton.Font = new Drawing.Font(this.Font.FontFamily, 14, Drawing.FontStyle.Bold);
+            _addReferenceButton.UseVisualStyleBackColor = true;
+            _addReferenceButton.FlatStyle = WinForms.FlatStyle.Flat;
+            _addReferenceButton.FlatAppearance.BorderSize = 1;
+            _addReferenceButton.FlatAppearance.BorderColor = Drawing.Color.LightGray;
+            _addReferenceButton.Click += AddReferenceButton_Click;
+            refImagesGroup.Controls.Add(_addReferenceButton);
+
+            // OpenAI High Quality checkbox
+            chkHighQuality = new WinForms.CheckBox();
             chkHighQuality.Text = "High-Quality Image Capture";
-            chkHighQuality.Size = new System.Drawing.Size(200, 20);
-            chkHighQuality.Location = new System.Drawing.Point(0, 390);
+            chkHighQuality.Size = new Drawing.Size(300, 25);
+            chkHighQuality.Location = new Drawing.Point(20, 490);
             chkHighQuality.Checked = _highQualityRender;
+            chkHighQuality.Font = new Drawing.Font(this.Font.FontFamily, 10);
+            chkHighQuality.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
             chkHighQuality.CheckedChanged += (s, e) => {
                 _highQualityRender = chkHighQuality.Checked;
                 CaptureCurrentView(); // Recapture with new quality settings
             };
 
-            // Add Stability AI controls to panel
-            pnlStabilitySettings.Controls.Add(lblStabilityApiSection);
-            pnlStabilitySettings.Controls.Add(lblStabilityApiKey);
-            pnlStabilitySettings.Controls.Add(txtStabilityApiKey);
-            pnlStabilitySettings.Controls.Add(lblRenderSection);
-            pnlStabilitySettings.Controls.Add(lblPrompt);
-            pnlStabilitySettings.Controls.Add(txtPrompt);
-            pnlStabilitySettings.Controls.Add(lblNegativePrompt);
-            pnlStabilitySettings.Controls.Add(txtNegativePrompt);
-            pnlStabilitySettings.Controls.Add(lblControlStrength);
-            pnlStabilitySettings.Controls.Add(numControlStrength);
-            pnlStabilitySettings.Controls.Add(lblOutputFormat);
-            pnlStabilitySettings.Controls.Add(cboOutputFormat);
-            pnlStabilitySettings.Controls.Add(lblStylePreset);
-            pnlStabilitySettings.Controls.Add(cboStylePreset);
-            pnlStabilitySettings.Controls.Add(chkHighQuality);
-
-            // === OpenAI Panel ===
-            pnlOpenAiSettings = new System.Windows.Forms.Panel();
-            pnlOpenAiSettings.Size = new System.Drawing.Size(280, 520);
-            pnlOpenAiSettings.Location = new System.Drawing.Point(10, 70);
-            pnlOpenAiSettings.Visible = false; // Initially hidden
-
-            System.Windows.Forms.Label lblOpenAiApiSection = new System.Windows.Forms.Label();
-            lblOpenAiApiSection.Text = "API Configuration";
-            lblOpenAiApiSection.Font = new System.Drawing.Font(this.Font, System.Drawing.FontStyle.Bold);
-            lblOpenAiApiSection.Size = new System.Drawing.Size(200, 20);
-            lblOpenAiApiSection.Location = new System.Drawing.Point(0, 0);
-
-            System.Windows.Forms.Label lblOpenAiApiKey = new System.Windows.Forms.Label();
-            lblOpenAiApiKey.Text = "OpenAI API Key:";
-            lblOpenAiApiKey.Size = new System.Drawing.Size(120, 20);
-            lblOpenAiApiKey.Location = new System.Drawing.Point(0, 25);
-
-            txtOpenAiApiKey = new System.Windows.Forms.TextBox();
-            txtOpenAiApiKey.Size = new System.Drawing.Size(260, 20);
-            txtOpenAiApiKey.Location = new System.Drawing.Point(0, 45);
-            txtOpenAiApiKey.PasswordChar = '*';
-
-            // OpenAI specific controls
-            System.Windows.Forms.Label lblOpenAiRenderSection = new System.Windows.Forms.Label();
-            lblOpenAiRenderSection.Text = "Rendering Configuration";
-            lblOpenAiRenderSection.Font = new System.Drawing.Font(this.Font, System.Drawing.FontStyle.Bold);
-            lblOpenAiRenderSection.Size = new System.Drawing.Size(200, 20);
-            lblOpenAiRenderSection.Location = new System.Drawing.Point(0, 75);
-
-            System.Windows.Forms.Label lblOpenAiPrompt = new System.Windows.Forms.Label();
-            lblOpenAiPrompt.Text = "Prompt:";
-            lblOpenAiPrompt.Size = new System.Drawing.Size(100, 20);
-            lblOpenAiPrompt.Location = new System.Drawing.Point(0, 100);
-
-            txtOpenAiPrompt = new System.Windows.Forms.TextBox();
-            txtOpenAiPrompt.Size = new System.Drawing.Size(260, 80);
-            txtOpenAiPrompt.Location = new System.Drawing.Point(0, 120);
-            txtOpenAiPrompt.Multiline = true;
-
-            System.Windows.Forms.Label lblOpenAiModel = new System.Windows.Forms.Label();
-            lblOpenAiModel.Text = "Model:";
-            lblOpenAiModel.Size = new System.Drawing.Size(100, 20);
-            lblOpenAiModel.Location = new System.Drawing.Point(0, 210);
-
-            cboOpenAiModel = new System.Windows.Forms.ComboBox();
-            cboOpenAiModel.Size = new System.Drawing.Size(200, 20);
-            cboOpenAiModel.Location = new System.Drawing.Point(60, 210);
-            cboOpenAiModel.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            cboOpenAiModel.Items.AddRange(new object[] { "gpt-image-1" }); // Add more as they become available
-            cboOpenAiModel.SelectedIndex = 0;
-
-            // Reference Images Section
-            System.Windows.Forms.Label lblReferenceImages = new System.Windows.Forms.Label();
-            lblReferenceImages.Text = "Reference Images";
-            lblReferenceImages.Font = new System.Drawing.Font(this.Font, System.Drawing.FontStyle.Bold);
-            lblReferenceImages.Size = new System.Drawing.Size(200, 20);
-            lblReferenceImages.Location = new System.Drawing.Point(0, 240);
-
-            // Description label
-            System.Windows.Forms.Label lblReferenceDesc = new System.Windows.Forms.Label();
-            lblReferenceDesc.Text = "Add images to influence the final rendering";
-            lblReferenceDesc.Size = new System.Drawing.Size(260, 20);
-            lblReferenceDesc.Location = new System.Drawing.Point(0, 265);
-            lblReferenceDesc.ForeColor = System.Drawing.Color.DimGray;
-            lblReferenceDesc.Font = new System.Drawing.Font(this.Font.FontFamily, 8);
-
-            // Panel to hold reference thumbnails
-            _referencesPanel = new System.Windows.Forms.FlowLayoutPanel();
-            _referencesPanel.Size = new System.Drawing.Size(260, 80);
-            _referencesPanel.Location = new System.Drawing.Point(0, 290);
-            _referencesPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            _referencesPanel.AutoScroll = true;
-            _referencesPanel.FlowDirection = FlowDirection.LeftToRight;
-            _referencesPanel.WrapContents = true;
-
-            // Add Reference button
-            _addReferenceButton = new System.Windows.Forms.Button();
-            _addReferenceButton.Text = "+";
-            _addReferenceButton.Size = new System.Drawing.Size(30, 30);
-            _addReferenceButton.Location = new System.Drawing.Point(230, 290);
-            _addReferenceButton.Font = new System.Drawing.Font(this.Font.FontFamily, 14, System.Drawing.FontStyle.Bold);
-            _addReferenceButton.UseVisualStyleBackColor = true;
-            _addReferenceButton.Click += AddReferenceButton_Click;
-
-            // OpenAI High Quality checkbox
-            System.Windows.Forms.CheckBox chkOpenAiHighQuality = new System.Windows.Forms.CheckBox();
-            chkOpenAiHighQuality.Text = "High-Quality Image Capture";
-            chkOpenAiHighQuality.Size = new System.Drawing.Size(200, 20);
-            chkOpenAiHighQuality.Location = new System.Drawing.Point(0, 380);
-            chkOpenAiHighQuality.Checked = _highQualityRender;
-            chkOpenAiHighQuality.CheckedChanged += (s, e) => {
-                _highQualityRender = chkOpenAiHighQuality.Checked;
-                CaptureCurrentView(); // Recapture with new quality settings
-            };
-
             // Add OpenAI controls to its panel
-            pnlOpenAiSettings.Controls.Add(lblOpenAiApiSection);
-            pnlOpenAiSettings.Controls.Add(lblOpenAiApiKey);
-            pnlOpenAiSettings.Controls.Add(txtOpenAiApiKey);
-            pnlOpenAiSettings.Controls.Add(lblOpenAiRenderSection);
-            pnlOpenAiSettings.Controls.Add(lblOpenAiPrompt);
-            pnlOpenAiSettings.Controls.Add(txtOpenAiPrompt);
-            pnlOpenAiSettings.Controls.Add(lblOpenAiModel);
-            pnlOpenAiSettings.Controls.Add(cboOpenAiModel);
-            pnlOpenAiSettings.Controls.Add(lblReferenceImages);
-            pnlOpenAiSettings.Controls.Add(lblReferenceDesc);
-            pnlOpenAiSettings.Controls.Add(_referencesPanel);
-            pnlOpenAiSettings.Controls.Add(_addReferenceButton);
-            pnlOpenAiSettings.Controls.Add(chkOpenAiHighQuality);
+            pnlOpenAiSettings.Controls.Add(apiConfigGroup);
+            pnlOpenAiSettings.Controls.Add(renderConfigGroup);
+            pnlOpenAiSettings.Controls.Add(refImagesGroup);
+            pnlOpenAiSettings.Controls.Add(chkHighQuality);
 
-            // Action buttons (should be visible regardless of which panel is active)
-            btnRender = new System.Windows.Forms.Button();
+            // Action buttons (styled to match your screenshot)
+            btnRender = new WinForms.Button();
             btnRender.Text = "Render View";
-            btnRender.Size = new System.Drawing.Size(120, 30);
-            btnRender.Location = new System.Drawing.Point(10, 500);
-            btnRender.BackColor = System.Drawing.Color.FromArgb(0, 122, 204);
-            btnRender.ForeColor = System.Drawing.Color.White;
+            btnRender.Size = new Drawing.Size(200, 40);
+            btnRender.Location = new Drawing.Point(20, 640);
+            btnRender.BackColor = Drawing.Color.FromArgb(0, 122, 204);
+            btnRender.ForeColor = Drawing.Color.White;
+            btnRender.FlatStyle = WinForms.FlatStyle.Flat;
+            btnRender.FlatAppearance.BorderSize = 0;
+            btnRender.Font = new Drawing.Font(this.Font.FontFamily, 10, Drawing.FontStyle.Bold);
             btnRender.Click += btnRender_Click;
 
-            btnSaveSettings = new System.Windows.Forms.Button();
+            btnSaveSettings = new WinForms.Button();
             btnSaveSettings.Text = "Save Settings";
-            btnSaveSettings.Size = new System.Drawing.Size(120, 30);
-            btnSaveSettings.Location = new System.Drawing.Point(140, 500);
+            btnSaveSettings.Size = new Drawing.Size(200, 40);
+            btnSaveSettings.Location = new Drawing.Point(230, 640);
+            btnSaveSettings.BackColor = Drawing.Color.FromArgb(230, 230, 230);
+            btnSaveSettings.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            btnSaveSettings.FlatStyle = WinForms.FlatStyle.Flat;
+            btnSaveSettings.FlatAppearance.BorderSize = 0;
+            btnSaveSettings.Font = new Drawing.Font(this.Font.FontFamily, 10);
             btnSaveSettings.Click += btnSaveSettings_Click;
 
-            // Add a Sync View button
-            Button btnSyncView = new Button();
+            // Sync View button
+            WinForms.Button btnSyncView = new WinForms.Button();
             btnSyncView.Text = "Sync View";
-            btnSyncView.Size = new System.Drawing.Size(120, 30);
-            btnSyncView.Location = new System.Drawing.Point(10, 540); // Position below Render button
-            btnSyncView.BackColor = System.Drawing.Color.FromArgb(0, 160, 160); // Distinct color
-            btnSyncView.ForeColor = System.Drawing.Color.White;
+            btnSyncView.Size = new Drawing.Size(200, 40);
+            btnSyncView.Location = new Drawing.Point(20, 690);
+            btnSyncView.BackColor = Drawing.Color.FromArgb(0, 160, 160);
+            btnSyncView.ForeColor = Drawing.Color.White;
+            btnSyncView.FlatStyle = WinForms.FlatStyle.Flat;
+            btnSyncView.FlatAppearance.BorderSize = 0;
+            btnSyncView.Font = new Drawing.Font(this.Font.FontFamily, 10);
             btnSyncView.Click += btnSyncView_Click;
 
-            // Add a Save Image button
-            Button btnSaveImage = new Button();
+            // Save Image button
+            WinForms.Button btnSaveImage = new WinForms.Button();
             btnSaveImage.Text = "Save Image";
-            btnSaveImage.Size = new System.Drawing.Size(120, 30);
-            btnSaveImage.Location = new System.Drawing.Point(140, 540);
-            btnSaveImage.BackColor = System.Drawing.Color.FromArgb(220, 220, 220);
-            btnSaveImage.ForeColor = System.Drawing.Color.Black;
+            btnSaveImage.Size = new Drawing.Size(200, 40);
+            btnSaveImage.Location = new Drawing.Point(230, 690);
+            btnSaveImage.BackColor = Drawing.Color.FromArgb(230, 230, 230);
+            btnSaveImage.ForeColor = Drawing.Color.FromArgb(60, 60, 60);
+            btnSaveImage.FlatStyle = WinForms.FlatStyle.Flat;
+            btnSaveImage.FlatAppearance.BorderSize = 0;
+            btnSaveImage.Font = new Drawing.Font(this.Font.FontFamily, 10);
             btnSaveImage.Click += btnSaveImage_Click;
 
             // Add all controls to the settings panel
-            settingsPanel.Controls.Add(lblProviderSection);
-            settingsPanel.Controls.Add(cboProvider);
+            settingsPanel.Controls.Add(providerGroup);
             settingsPanel.Controls.Add(pnlStabilitySettings);
             settingsPanel.Controls.Add(pnlOpenAiSettings);
             settingsPanel.Controls.Add(btnRender);
@@ -420,51 +476,56 @@ namespace RevitAIRenderer
             settingsPanel.Controls.Add(btnSaveImage);
 
             // === Right Panel (Image Viewer) ===
-            System.Windows.Forms.Panel imageViewerPanel = new System.Windows.Forms.Panel();
-            imageViewerPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-            imageViewerPanel.AutoScroll = true;
+            WinForms.Panel imageViewerPanel = new WinForms.Panel();
+            imageViewerPanel.Dock = WinForms.DockStyle.Fill;
+            imageViewerPanel.BackColor = Drawing.Color.White;
+            imageViewerPanel.Padding = new WinForms.Padding(10);
             splitContainer.Panel2.Controls.Add(imageViewerPanel);
 
-            // Image control tabs
-            tabControl = new System.Windows.Forms.TabControl();
-            tabControl.Dock = System.Windows.Forms.DockStyle.Fill;
+            // Tabbed interface for image views
+            tabControl = new WinForms.TabControl();
+            tabControl.Dock = WinForms.DockStyle.Fill;
+            tabControl.Font = new Drawing.Font(this.Font.FontFamily, 10);
             imageViewerPanel.Controls.Add(tabControl);
 
             // Original image tab
-            System.Windows.Forms.TabPage tabOriginal = new System.Windows.Forms.TabPage("Original View");
-            pictureBoxOriginal = new System.Windows.Forms.PictureBox();
-            pictureBoxOriginal.Dock = System.Windows.Forms.DockStyle.Fill;
-            pictureBoxOriginal.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            pictureBoxOriginal.BackColor = System.Drawing.Color.LightGray;
+            WinForms.TabPage tabOriginal = new WinForms.TabPage("Original View");
+            tabOriginal.BackColor = Drawing.Color.White;
+            pictureBoxOriginal = new WinForms.PictureBox();
+            pictureBoxOriginal.Dock = WinForms.DockStyle.Fill;
+            pictureBoxOriginal.SizeMode = WinForms.PictureBoxSizeMode.Zoom;
+            pictureBoxOriginal.BackColor = Drawing.Color.FromArgb(240, 240, 240);
             tabOriginal.Controls.Add(pictureBoxOriginal);
 
             // Rendered image tab
-            System.Windows.Forms.TabPage tabRendered = new System.Windows.Forms.TabPage("AI Rendered");
-            pictureBoxRendered = new System.Windows.Forms.PictureBox();
-            pictureBoxRendered.Dock = System.Windows.Forms.DockStyle.Fill;
-            pictureBoxRendered.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            pictureBoxRendered.BackColor = System.Drawing.Color.LightGray;
+            WinForms.TabPage tabRendered = new WinForms.TabPage("AI Rendered");
+            tabRendered.BackColor = Drawing.Color.White;
+            pictureBoxRendered = new WinForms.PictureBox();
+            pictureBoxRendered.Dock = WinForms.DockStyle.Fill;
+            pictureBoxRendered.SizeMode = WinForms.PictureBoxSizeMode.Zoom;
+            pictureBoxRendered.BackColor = Drawing.Color.FromArgb(240, 240, 240);
             tabRendered.Controls.Add(pictureBoxRendered);
 
             tabControl.TabPages.Add(tabOriginal);
             tabControl.TabPages.Add(tabRendered);
 
             // Status bar for information
-            statusStrip = new System.Windows.Forms.StatusStrip();
-            statusStrip.Dock = System.Windows.Forms.DockStyle.Bottom;
-            lblStatus = new System.Windows.Forms.ToolStripStatusLabel();
+            statusStrip = new WinForms.StatusStrip();
+            statusStrip.BackColor = Drawing.Color.WhiteSmoke;
+            lblStatus = new WinForms.ToolStripStatusLabel();
             lblStatus.Text = "Ready";
             lblStatus.Spring = true;
-            lblStatus.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            lblStatus.TextAlign = Drawing.ContentAlignment.MiddleLeft;
+            lblStatus.Font = new Drawing.Font(this.Font.FontFamily, 9);
             statusStrip.Items.Add(lblStatus);
             this.Controls.Add(statusStrip);
 
             // Progress bar for rendering
-            progressBar = new System.Windows.Forms.ProgressBar();
-            progressBar.Style = System.Windows.Forms.ProgressBarStyle.Marquee;
+            progressBar = new WinForms.ProgressBar();
+            progressBar.Style = WinForms.ProgressBarStyle.Marquee;
             progressBar.MarqueeAnimationSpeed = 30;
-            progressBar.Height = 20;
-            progressBar.Dock = System.Windows.Forms.DockStyle.Bottom;
+            progressBar.Height = 6;
+            progressBar.Dock = WinForms.DockStyle.Bottom;
             progressBar.Visible = false;
             this.Controls.Add(progressBar);
         }
@@ -595,8 +656,8 @@ namespace RevitAIRenderer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving settings: {ex.Message}", "Settings Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                WinForms.MessageBox.Show($"Error saving settings: {ex.Message}", "Settings Error",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
             }
         }
 
@@ -605,15 +666,15 @@ namespace RevitAIRenderer
             // Check if we have a rendered image
             if (string.IsNullOrEmpty(_renderedImagePath) || !File.Exists(_renderedImagePath))
             {
-                MessageBox.Show("No rendered image available to save. Please render a view first.",
-                    "No Image Available", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                WinForms.MessageBox.Show("No rendered image available to save. Please render a view first.",
+                    "No Image Available", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
                 return;
             }
 
             try
             {
                 // Show a save file dialog
-                SaveFileDialog saveDialog = new SaveFileDialog
+                WinForms.SaveFileDialog saveDialog = new WinForms.SaveFileDialog
                 {
                     Filter = "PNG Image|*.png|JPEG Image|*.jpg|All Files|*.*",
                     Title = "Save Rendered Image",
@@ -627,18 +688,18 @@ namespace RevitAIRenderer
                 else
                     saveDialog.FilterIndex = 1;
 
-                if (saveDialog.ShowDialog() == DialogResult.OK)
+                if (saveDialog.ShowDialog() == WinForms.DialogResult.OK)
                 {
                     // Copy the file to the selected location
                     File.Copy(_renderedImagePath, saveDialog.FileName, true);
-                    MessageBox.Show($"Image saved successfully to:\n{saveDialog.FileName}",
-                        "Save Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    WinForms.MessageBox.Show($"Image saved successfully to:\n{saveDialog.FileName}",
+                        "Save Complete", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving image: {ex.Message}", "Save Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                WinForms.MessageBox.Show($"Error saving image: {ex.Message}", "Save Error",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
             }
         }
 
@@ -649,7 +710,7 @@ namespace RevitAIRenderer
                 // Show progress indicator
                 lblStatus.Text = "Synchronizing with Revit view...";
                 progressBar.Visible = true;
-                this.Cursor = Cursors.WaitCursor;
+                this.Cursor = WinForms.Cursors.WaitCursor;
 
                 // Recapture the view with current Revit settings
                 CaptureCurrentView();
@@ -662,15 +723,15 @@ namespace RevitAIRenderer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error synchronizing view: {ex.Message}", "Sync Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                WinForms.MessageBox.Show($"Error synchronizing view: {ex.Message}", "Sync Error",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
                 lblStatus.Text = "View synchronization failed";
             }
             finally
             {
                 // Reset UI state
                 progressBar.Visible = false;
-                this.Cursor = Cursors.Default;
+                this.Cursor = WinForms.Cursors.Default;
             }
         }
 
@@ -679,29 +740,29 @@ namespace RevitAIRenderer
         {
             try
             {
-                using (OpenFileDialog dialog = new OpenFileDialog())
+                using (WinForms.OpenFileDialog dialog = new WinForms.OpenFileDialog())
                 {
                     dialog.Filter = "Image Files|*.jpg;*.jpeg;*.png;*.bmp";
                     dialog.Title = "Select Reference Image";
                     dialog.Multiselect = false;
 
-                    if (dialog.ShowDialog() == DialogResult.OK)
+                    if (dialog.ShowDialog() == WinForms.DialogResult.OK)
                     {
                         string imagePath = dialog.FileName;
-                        
+
                         // Copy image to a temporary location
                         string refDir = GetSafeTempDirectory("References");
-                        string destPath = Path.Combine(refDir, 
+                        string destPath = Path.Combine(refDir,
                             $"ref_{DateTime.Now:yyyyMMdd_HHmmss}_{Path.GetFileName(imagePath)}");
-                        
+
                         File.Copy(imagePath, destPath, true);
-                        
+
                         // Add to our collection
                         _referenceImagePaths.Add(destPath);
-                        
+
                         // Create and add the thumbnail
                         AddThumbnailToUI(destPath);
-                        
+
                         // Update status
                         lblStatus.Text = $"Added reference image: {Path.GetFileName(imagePath)}";
                     }
@@ -709,8 +770,8 @@ namespace RevitAIRenderer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error adding reference image: {ex.Message}", "Reference Image Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                WinForms.MessageBox.Show($"Error adding reference image: {ex.Message}", "Reference Image Error",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
             }
         }
 
@@ -721,17 +782,17 @@ namespace RevitAIRenderer
                 // Create a thumbnail container panel
                 WinForms.Panel thumbnailPanel = new WinForms.Panel
                 {
-                    Size = new Size(80, 65),
-                    Margin = new Padding(3),
-                    BorderStyle = BorderStyle.FixedSingle
+                    Size = new Drawing.Size(80, 65),
+                    Margin = new WinForms.Padding(3),
+                    BorderStyle = WinForms.BorderStyle.FixedSingle
                 };
 
                 // Create PictureBox for the image
-                PictureBox thumbnail = new PictureBox
+                WinForms.PictureBox thumbnail = new WinForms.PictureBox
                 {
-                    Size = new Size(70, 45),
+                    Size = new Drawing.Size(70, 45),
                     Location = new Drawing.Point(5, 5),
-                    SizeMode = PictureBoxSizeMode.Zoom,
+                    SizeMode = WinForms.PictureBoxSizeMode.Zoom,
                     Tag = imagePath // Store the path for reference
                 };
 
@@ -746,14 +807,14 @@ namespace RevitAIRenderer
                 thumbnail.Click += Thumbnail_Click;
 
                 // Create delete button
-                Button deleteButton = new Button
+                WinForms.Button deleteButton = new WinForms.Button
                 {
                     Text = "×",
-                    Size = new Size(20, 20),
+                    Size = new Drawing.Size(20, 20),
                     Location = new Drawing.Point(thumbnailPanel.Width - 25, 5),
-                    Font = new Font(this.Font.FontFamily, 8, FontStyle.Bold),
+                    Font = new Drawing.Font(this.Font.FontFamily, 8, Drawing.FontStyle.Bold),
                     UseVisualStyleBackColor = true,
-                    FlatStyle = FlatStyle.Flat,
+                    FlatStyle = WinForms.FlatStyle.Flat,
                     Tag = imagePath // Store the path for reference
                 };
                 deleteButton.Click += DeleteReferenceButton_Click;
@@ -767,14 +828,14 @@ namespace RevitAIRenderer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error creating thumbnail: {ex.Message}", "Thumbnail Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                WinForms.MessageBox.Show($"Error creating thumbnail: {ex.Message}", "Thumbnail Error",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
             }
         }
 
         private void Thumbnail_Click(object sender, EventArgs e)
         {
-            PictureBox thumbnail = sender as PictureBox;
+            WinForms.PictureBox thumbnail = sender as WinForms.PictureBox;
             if (thumbnail != null && thumbnail.Tag is string imagePath)
             {
                 int index = _referenceImagePaths.IndexOf(imagePath);
@@ -791,12 +852,12 @@ namespace RevitAIRenderer
 
         private void DeleteReferenceButton_Click(object sender, EventArgs e)
         {
-            Button deleteButton = sender as Button;
+            WinForms.Button deleteButton = sender as WinForms.Button;
             if (deleteButton != null && deleteButton.Tag is string imagePath)
             {
                 // Remove from our collection
                 _referenceImagePaths.Remove(imagePath);
-                
+
                 // Find and remove the parent panel from the flow layout
                 WinForms.Control parentPanel = deleteButton.Parent;
                 if (parentPanel != null)
@@ -804,7 +865,7 @@ namespace RevitAIRenderer
                     _referencesPanel.Controls.Remove(parentPanel);
                     parentPanel.Dispose();
                 }
-                
+
                 lblStatus.Text = $"Removed reference image: {Path.GetFileName(imagePath)}";
             }
         }
@@ -813,8 +874,8 @@ namespace RevitAIRenderer
         {
             if (_isRendering)
             {
-                MessageBox.Show("Rendering is already in progress.", "Please Wait",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                WinForms.MessageBox.Show("Rendering is already in progress.", "Please Wait",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
                 return;
             }
 
@@ -822,7 +883,7 @@ namespace RevitAIRenderer
             string selectedProvider = cboProvider.SelectedItem.ToString();
             string apiKey = string.Empty;
             string prompt = string.Empty;
-            
+
             if (selectedProvider == "StabilityAI")
             {
                 apiKey = txtStabilityApiKey.Text;
@@ -837,8 +898,8 @@ namespace RevitAIRenderer
             // Check if API key is provided
             if (string.IsNullOrEmpty(apiKey))
             {
-                MessageBox.Show($"Please enter your {selectedProvider} API key before rendering.",
-                    "API Key Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                WinForms.MessageBox.Show($"Please enter your {selectedProvider} API key before rendering.",
+                    "API Key Required", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
                 return;
             }
 
@@ -850,12 +911,12 @@ namespace RevitAIRenderer
             try
             {
                 string resultPath = string.Empty;
-                
+
                 if (selectedProvider == "StabilityAI")
                 {
                     // Use existing Stability AI path
                     var client = new StabilityApiClient(apiKey, _settings.VerboseLogging);
-                    
+
                     // Get the style preset (empty string if nothing selected)
                     string stylePreset = cboStylePreset.SelectedItem.ToString();
 
@@ -872,10 +933,10 @@ namespace RevitAIRenderer
                 {
                     // Use new OpenAI path with reference images
                     var client = new OpenAiApiClient(apiKey, _settings.VerboseLogging);
-                    
+
                     // Get selected model
                     string model = cboOpenAiModel.SelectedItem.ToString();
-                    
+
                     // Render using OpenAI
                     resultPath = await client.ProcessRevitViewWithReferencesAsync(
                         _originalImagePath,
@@ -888,17 +949,17 @@ namespace RevitAIRenderer
                 if (!string.IsNullOrEmpty(resultPath))
                 {
                     LoadRenderedImage(resultPath);
-                    
+
                     // Switch to the rendered tab
                     tabControl.SelectedIndex = 1;
-                    
+
                     lblStatus.Text = "Rendering completed successfully";
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error during rendering: {ex.Message}", "Rendering Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                WinForms.MessageBox.Show($"Error during rendering: {ex.Message}", "Rendering Error",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
                 lblStatus.Text = "Rendering failed";
             }
             finally
@@ -1024,8 +1085,8 @@ namespace RevitAIRenderer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to capture view: {ex.Message}", "Capture Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                WinForms.MessageBox.Show($"Failed to capture view: {ex.Message}", "Capture Error",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
                 lblStatus.Text = "Failed to capture view";
             }
         }
@@ -1048,10 +1109,10 @@ namespace RevitAIRenderer
                     int newHeight = (int)(_originalImage.Height * scalingFactor);
 
                     // Create resized image
-                    System.Drawing.Bitmap resizedImage = new System.Drawing.Bitmap(newWidth, newHeight);
-                    using (System.Drawing.Graphics g = System.Drawing.Graphics.FromImage(resizedImage))
+                    Drawing.Bitmap resizedImage = new Drawing.Bitmap(newWidth, newHeight);
+                    using (Drawing.Graphics g = Drawing.Graphics.FromImage(resizedImage))
                     {
-                        g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                        g.InterpolationMode = Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
                         g.DrawImage(_originalImage, 0, 0, newWidth, newHeight);
                     }
 
@@ -1089,8 +1150,8 @@ namespace RevitAIRenderer
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Error loading image: {ex.Message}", "Image Error",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    WinForms.MessageBox.Show($"Error loading image: {ex.Message}", "Image Error",
+                        WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
                 }
             }
         }
@@ -1116,8 +1177,8 @@ namespace RevitAIRenderer
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Error loading rendered image: {ex.Message}", "Image Error",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    WinForms.MessageBox.Show($"Error loading rendered image: {ex.Message}", "Image Error",
+                        WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
                 }
             }
         }
@@ -1172,8 +1233,8 @@ namespace RevitAIRenderer
                     }
 
                     // Create a new bitmap with the corrected dimensions
-                    System.Drawing.Bitmap croppedImage = new System.Drawing.Bitmap(newWidth, newHeight);
-                    using (System.Drawing.Graphics g = System.Drawing.Graphics.FromImage(croppedImage))
+                    Drawing.Bitmap croppedImage = new Drawing.Bitmap(newWidth, newHeight);
+                    using (Drawing.Graphics g = Drawing.Graphics.FromImage(croppedImage))
                     {
                         // Center the crop
                         int x = (_originalImage.Width - newWidth) / 2;
@@ -1181,9 +1242,9 @@ namespace RevitAIRenderer
 
                         // Draw the cropped portion
                         g.DrawImage(_originalImage,
-                                    new System.Drawing.Rectangle(0, 0, newWidth, newHeight),
-                                    new System.Drawing.Rectangle(x, y, newWidth, newHeight),
-                                    System.Drawing.GraphicsUnit.Pixel);
+                                    new Drawing.Rectangle(0, 0, newWidth, newHeight),
+                                    new Drawing.Rectangle(x, y, newWidth, newHeight),
+                                    Drawing.GraphicsUnit.Pixel);
                     }
 
                     // Dispose of the original image
@@ -1254,7 +1315,7 @@ namespace RevitAIRenderer
                 {
                     foreach (WinForms.Control c in panel.Controls)
                     {
-                        if (c is PictureBox pb && pb.Image != null)
+                        if (c is WinForms.PictureBox pb && pb.Image != null)
                         {
                             pb.Image.Dispose();
                             pb.Image = null;
@@ -1267,7 +1328,7 @@ namespace RevitAIRenderer
             base.Dispose();
         }
 
-        protected override void OnFormClosing(FormClosingEventArgs e)
+        protected override void OnFormClosing(WinForms.FormClosingEventArgs e)
         {
             base.OnFormClosing(e);
 
@@ -1291,7 +1352,7 @@ namespace RevitAIRenderer
                 {
                     foreach (WinForms.Control c in panel.Controls)
                     {
-                        if (c is PictureBox pb && pb.Image != null)
+                        if (c is WinForms.PictureBox pb && pb.Image != null)
                         {
                             pb.Image.Dispose();
                             pb.Image = null;
