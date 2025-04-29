@@ -14,6 +14,24 @@ namespace RevitAIRenderer
         public string StabilityApiKey { get; set; } = "";
         public string OpenAiApiKey { get; set; } = "";
 
+        // Add a computed ApiKey property for backward compatibility
+        public string ApiKey
+        {
+            get
+            {
+                // Return the appropriate API key based on the selected provider
+                return SelectedProvider == "StabilityAI" ? StabilityApiKey : OpenAiApiKey;
+            }
+            set
+            {
+                // Set the appropriate API key based on the selected provider
+                if (SelectedProvider == "StabilityAI")
+                    StabilityApiKey = value;
+                else
+                    OpenAiApiKey = value;
+            }
+        }
+
         // Common settings for both providers
         public string DefaultPrompt { get; set; } = "photorealistic rendering, high quality, architectural visualization";
         public bool OfflineMode { get; set; } = false;
@@ -165,7 +183,8 @@ namespace RevitAIRenderer
             string settingsPath = GetSettingsFilePath();
             string json = JsonConvert.SerializeObject(this, Formatting.Indented);
             LogSettings($"Saving settings to: {settingsPath}");
-            LogSettings($"API Key length: {(string.IsNullOrEmpty(StabilityApiKey) ? 0 : StabilityApiKey.Length)}");
+            LogSettings($"StabilityAI API Key length: {(string.IsNullOrEmpty(StabilityApiKey) ? 0 : StabilityApiKey.Length)}");
+            LogSettings($"OpenAI API Key length: {(string.IsNullOrEmpty(OpenAiApiKey) ? 0 : OpenAiApiKey.Length)}");
 
             try
             {
@@ -186,7 +205,8 @@ namespace RevitAIRenderer
                 {
                     string verifyJson = File.ReadAllText(settingsPath);
                     var verifySettings = JsonConvert.DeserializeObject<AiRendererSettings>(verifyJson);
-                    LogSettings($"Verified settings. API Key length: {(string.IsNullOrEmpty(verifySettings.ApiKey) ? 0 : verifySettings.ApiKey.Length)}");
+                    LogSettings($"Verified settings. StabilityAI API Key length: {(string.IsNullOrEmpty(verifySettings.StabilityApiKey) ? 0 : verifySettings.StabilityApiKey.Length)}");
+                    LogSettings($"Verified settings. OpenAI API Key length: {(string.IsNullOrEmpty(verifySettings.OpenAiApiKey) ? 0 : verifySettings.OpenAiApiKey.Length)}");
                 }
             }
             catch (Exception ex)
