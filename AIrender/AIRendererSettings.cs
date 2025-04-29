@@ -1,25 +1,34 @@
 ﻿using System;
 using System.IO;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace RevitAIRenderer
 {
     public class AiRendererSettings
     {
-        public string ApiKey { get; set; } = "";
+        // Common settings
+        public string SelectedProvider { get; set; } = "StabilityAI"; // Default provider
+
+        // Provider-specific API keys
+        public string StabilityApiKey { get; set; } = "";
+        public string OpenAiApiKey { get; set; } = "";
+
+        // Common settings for both providers
         public string DefaultPrompt { get; set; } = "photorealistic rendering, high quality, architectural visualization";
-        public float Strength { get; set; } = 0.85f;  // Updated default to match new model
-        public int Steps { get; set; } = 28;  // Updated default to match new model
-        public float GuidanceScale { get; set; } = 3.5f;
         public bool OfflineMode { get; set; } = false;
 
-        // New model settings
+        // Stability AI specific settings
+        public float Strength { get; set; } = 0.85f;
+        public int Steps { get; set; } = 28;
+        public float GuidanceScale { get; set; } = 3.5f;
         public string OutputFormat { get; set; } = "jpeg";
         public float ControlLoraStrength { get; set; } = 1.0f;
+        public string StylePreset { get; set; } = "";
+        public float ControlStrength { get; set; } = 0.7f;
 
-        // Stability AI settings
-        public string StylePreset { get; set; } = ""; // New property for Stability AI
-        public float ControlStrength { get; set; } = 0.7f; // New property for control strength
+        // OpenAI specific settings
+        public string OpenAiModel { get; set; } = "gpt-image-1";
 
         // Network configuration properties
         public bool UseSystemProxy { get; set; } = true;
@@ -36,6 +45,10 @@ namespace RevitAIRenderer
         public bool VerboseLogging { get; set; } = false;
         public int MaxLogFileSizeMB { get; set; } = 10;
 
+        // We can't directly serialize reference image paths as they're temporary
+        // Instead, we'll just remember if the user has the feature enabled
+        public bool EnableReferenceImages { get; set; } = false;
+
         public static AiRendererSettings Load()
         {
             string settingsPath = GetSettingsFilePath();
@@ -48,7 +61,7 @@ namespace RevitAIRenderer
                     string json = File.ReadAllText(settingsPath);
                     LogSettings($"Settings file found, content length: {json.Length}");
                     var settings = JsonConvert.DeserializeObject<AiRendererSettings>(json);
-                    LogSettings($"Settings loaded successfully. API Key length: {(string.IsNullOrEmpty(settings.ApiKey) ? 0 : settings.ApiKey.Length)}");
+                    LogSettings($"Settings loaded successfully. Current provider: {settings.SelectedProvider}");
                     return settings;
                 }
                 catch (Exception ex)
@@ -152,7 +165,7 @@ namespace RevitAIRenderer
             string settingsPath = GetSettingsFilePath();
             string json = JsonConvert.SerializeObject(this, Formatting.Indented);
             LogSettings($"Saving settings to: {settingsPath}");
-            LogSettings($"API Key length: {(string.IsNullOrEmpty(ApiKey) ? 0 : ApiKey.Length)}");
+            LogSettings($"API Key length: {(string.IsNullOrEmpty(StabilityApiKey) ? 0 : StabilityApiKey.Length)}");
 
             try
             {

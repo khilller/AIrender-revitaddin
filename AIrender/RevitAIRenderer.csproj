@@ -80,6 +80,10 @@
     <Compile Include="CombinedRenderForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="OpenAiApiClient.cs" />
+    <Compile Include="ReferenceImageViewer.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="StabilityApiClient.cs" />
     <Compile Include="ImageViewerForm.cs">
       <SubType>Form</SubType>
