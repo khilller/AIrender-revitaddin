@@ -84,14 +84,21 @@ namespace RevitAIRenderer
             splitContainer = new WinForms.SplitContainer();
             splitContainer.Dock = WinForms.DockStyle.Fill;
             splitContainer.Orientation = WinForms.Orientation.Horizontal;
-            splitContainer.Panel1MinSize = 250;
-            splitContainer.Panel2MinSize = 400;
-            splitContainer.SplitterDistance = 300;
             splitContainer.BackColor = Drawing.Color.White;
             splitContainer.BorderStyle = WinForms.BorderStyle.FixedSingle;
 
-            // First add the control to the form, before setting min sizes
+            // First add the control to the form
             this.Controls.Add(splitContainer);
+
+            // Now set minimum sizes and splitter distance AFTER the control is added to the form
+            // This gives the control a chance to size itself according to the form
+            this.Shown += (s, e) => {
+                // Set these values after the control is sized
+                int totalHeight = splitContainer.Height;
+                splitContainer.Panel1MinSize = Math.Min(250, totalHeight / 3);
+                splitContainer.Panel2MinSize = Math.Min(400, totalHeight / 3);
+                splitContainer.SplitterDistance = Math.Min(300, totalHeight / 2);
+            };
 
             // === Left Panel (Settings) ===
             settingsPanel = new WinForms.Panel();
