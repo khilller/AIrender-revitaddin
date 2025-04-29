@@ -7,6 +7,8 @@ using System.Windows.Forms;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Rectangle = System.Drawing.Rectangle;
+using WinForms = System.Windows.Forms;
+using Drawing = System.Drawing;
 
 namespace RevitAIRenderer
 {
@@ -717,7 +719,7 @@ namespace RevitAIRenderer
             try
             {
                 // Create a thumbnail container panel
-                Panel thumbnailPanel = new Panel
+                WinForms.Panel thumbnailPanel = new WinForms.Panel
                 {
                     Size = new Size(80, 65),
                     Margin = new Padding(3),
@@ -728,7 +730,7 @@ namespace RevitAIRenderer
                 PictureBox thumbnail = new PictureBox
                 {
                     Size = new Size(70, 45),
-                    Location = new Point(5, 5),
+                    Location = new Drawing.Point(5, 5),
                     SizeMode = PictureBoxSizeMode.Zoom,
                     Tag = imagePath // Store the path for reference
                 };
@@ -748,7 +750,7 @@ namespace RevitAIRenderer
                 {
                     Text = "×",
                     Size = new Size(20, 20),
-                    Location = new Point(thumbnailPanel.Width - 25, 5),
+                    Location = new Drawing.Point(thumbnailPanel.Width - 25, 5),
                     Font = new Font(this.Font.FontFamily, 8, FontStyle.Bold),
                     UseVisualStyleBackColor = true,
                     FlatStyle = FlatStyle.Flat,
@@ -796,7 +798,7 @@ namespace RevitAIRenderer
                 _referenceImagePaths.Remove(imagePath);
                 
                 // Find and remove the parent panel from the flow layout
-                Control parentPanel = deleteButton.Parent;
+                WinForms.Control parentPanel = deleteButton.Parent;
                 if (parentPanel != null)
                 {
                     _referencesPanel.Controls.Remove(parentPanel);
@@ -1246,11 +1248,11 @@ namespace RevitAIRenderer
             }
 
             // Clean up any reference image thumbnails
-            foreach (Control control in _referencesPanel.Controls)
+            foreach (WinForms.Control control in _referencesPanel.Controls)
             {
-                if (control is Panel panel)
+                if (control is WinForms.Panel panel)
                 {
-                    foreach (Control c in panel.Controls)
+                    foreach (WinForms.Control c in panel.Controls)
                     {
                         if (c is PictureBox pb && pb.Image != null)
                         {
@@ -1283,11 +1285,11 @@ namespace RevitAIRenderer
             }
 
             // Clean up any reference image thumbnails
-            foreach (Control control in _referencesPanel.Controls)
+            foreach (WinForms.Control control in _referencesPanel.Controls)
             {
-                if (control is Panel panel)
+                if (control is WinForms.Panel panel)
                 {
-                    foreach (Control c in panel.Controls)
+                    foreach (WinForms.Control c in panel.Controls)
                     {
                         if (c is PictureBox pb && pb.Image != null)
                         {
